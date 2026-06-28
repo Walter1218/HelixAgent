@@ -1,10 +1,60 @@
 import { RGBA, TextAttributes } from "@opentui/core"
-import { For, type JSX } from "solid-js"
+import { For, createSignal, onCleanup, createMemo, type JSX } from "solid-js"
 import { tint, useTheme } from "../context/theme"
 import { logo } from "../logo"
 
+const helixFrames = [
+  [
+    "        ╱──╲               ",
+    "       ╱ ╱╲ ╲              ",
+    "      ╱ ╱  ╲ ╲             ",
+    "    ─╱ ╱    ╲ ╲─           ",
+    "    ─╲ ╲    ╱ ╱─           ",
+    "      ╲ ╲  ╱ ╱             ",
+    "       ╲ ╲╱ ╱              ",
+    "        ╲──╱               ",
+  ],
+  [
+    "        ╱╲                 ",
+    "       ╱  ╲                ",
+    "      ╱ ╱╲ ╲               ",
+    "    ─╱ ╱  ╲ ╲─             ",
+    "    ─╲ ╲  ╱ ╱─             ",
+    "      ╲ ╲╱ ╱               ",
+    "       ╲  ╱                ",
+    "        ╲╱                 ",
+  ],
+  [
+    "         ╲──╱              ",
+    "        ╱ ╲╱ ╲             ",
+    "       ╱ ╱  ╲ ╲            ",
+    "     ─╱ ╱    ╲ ╲─          ",
+    "     ─╲ ╲    ╱ ╱─          ",
+    "       ╲ ╲  ╱ ╱            ",
+    "        ╲ ╱╲ ╱             ",
+    "         ╱──╲              ",
+  ],
+  [
+    "          ╲╱               ",
+    "         ╱  ╲              ",
+    "        ╱ ╲╱ ╲             ",
+    "      ─╱ ╱  ╲ ╲─           ",
+    "      ─╲ ╲  ╱ ╱─           ",
+    "        ╲ ╱╲ ╱             ",
+    "         ╱  ╲              ",
+    "          ╱╲               ",
+  ],
+]
+
 export function Logo() {
   const { theme } = useTheme()
+  const [frame, setFrame] = createSignal(0)
+
+  const helixInterval = setInterval(() => {
+    setFrame((prev) => (prev + 1) % helixFrames.length)
+  }, 500)
+
+  onCleanup(() => clearInterval(helixInterval))
 
   const renderLine = (line: string, fg: RGBA, bold: boolean): JSX.Element[] => {
     const shadow = tint(theme.background, fg, 0.25)
@@ -51,7 +101,9 @@ export function Logo() {
       <For each={logo.left}>
         {(line, index) => (
           <box flexDirection="row" gap={1}>
-            <box flexDirection="row">{renderLine(line, theme.textMuted, false)}</box>
+            <box flexDirection="row">
+              {renderLine(helixFrames[frame()][index()] || line, theme.textMuted, false)}
+            </box>
             <box flexDirection="row">{renderLine(logo.right[index()], theme.text, true)}</box>
           </box>
         )}

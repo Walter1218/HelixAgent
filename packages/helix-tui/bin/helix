@@ -1,0 +1,22 @@
+#!/usr/bin/env bun
+
+import path from "path"
+
+const opencodeDir = path.resolve(import.meta.dir, "../../opencode")
+process.chdir(opencodeDir)
+
+const proc = Bun.spawn(
+  ["bun", "dev", ...process.argv.slice(2)],
+  {
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+    cwd: opencodeDir,
+  },
+)
+
+process.on("SIGINT", () => proc.kill("SIGINT"))
+process.on("SIGTERM", () => proc.kill("SIGTERM"))
+
+await proc.exited
+process.exit(proc.exitCode ?? 0)

@@ -1,0 +1,16 @@
+{
+  "name": "@helix-agent/tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "helix": "./bin/helix"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./logo": "./src/logo.ts",
+    "./app": "./src/app.tsx",
+    "./layer": "./src/layer.ts",
+    "./cli": "./src/cli.ts"
+  }
+}
