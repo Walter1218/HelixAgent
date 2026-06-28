@@ -1,0 +1,16 @@
+Search persistent memory across sessions, projects, and global knowledge.
+
+Memory stores curated markdown files organized by scope (global, project, session) and type (memory, checkpoint, progress, notes, free). Use this tool to retrieve previously recorded information, rules, architecture decisions, and session notes.
+
+Parameters:
+- query: Search query using natural language. Terms are OR-joined and ranked by BM25 relevance.
+- scope: Optional filter by memory scope (global, projects, sessions, cc).
+- scope_id: Optional filter by scope ID (e.g., project hash, session ID).
+- type: Optional filter by memory type (memory, checkpoint, progress, notes, free).
+- limit: Maximum results to return (default 10).
+
+Tips for effective queries:
+1. Use distinctive terms (function names, IDs, flags) rather than generic phrases.
+2. For exact literals (URLs, ports, paths), use grep on the memory directory directly.
+3. For verbatim recall, use the history tool instead of memory.
+4. Widen scope progressively: session → project → global → history.
