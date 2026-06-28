@@ -1,34 +1,31 @@
-import { BusEvent } from "@/bus/bus-event"
-import { SessionID } from "@/session/schema"
-import { TaskStatus } from "./schema"
 import z from "zod"
 
-export const TaskCreated = BusEvent.define(
-  "task.created",
-  z.object({
-    sessionID: SessionID.zod,
+export const TaskCreated = {
+  type: "task.created",
+  properties: z.object({
+    sessionID: z.string(),
     taskID: z.string(),
     title: z.string(),
     parentID: z.string().optional(),
   }),
-)
+}
 
-export const TaskStatusChanged = BusEvent.define(
-  "task.status",
-  z.object({
-    sessionID: SessionID.zod,
+export const TaskStatusChanged = {
+  type: "task.status",
+  properties: z.object({
+    sessionID: z.string(),
     taskID: z.string(),
-    status: TaskStatus,
+    status: z.enum(["open", "in_progress", "done", "blocked", "abandoned"]),
     summary: z.string().optional(),
   }),
-)
+}
 
-export const TaskCompleted = BusEvent.define(
-  "task.completed",
-  z.object({
-    sessionID: SessionID.zod,
+export const TaskCompleted = {
+  type: "task.completed",
+  properties: z.object({
+    sessionID: z.string(),
     taskID: z.string(),
     status: z.enum(["done", "abandoned"]),
     summary: z.string().optional(),
   }),
-)
+}

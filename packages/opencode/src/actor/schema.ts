@@ -1,5 +1,4 @@
 import z from "zod"
-import { SessionID, MessageID } from "@/session/schema"
 
 export const ActorStatus = z.enum(["pending", "running", "idle"])
 export type ActorStatus = z.infer<typeof ActorStatus>
@@ -19,29 +18,27 @@ export type SpawnMode = z.infer<typeof SpawnMode>
 export const ToolWhitelist = z.union([z.array(z.string()).readonly(), z.literal("INHERIT")])
 export type ToolWhitelist = z.infer<typeof ToolWhitelist>
 
-export const Actor = z
-  .object({
-    sessionID: SessionID.zod,
-    actorID: z.string(),
-    mode: SpawnMode,
-    parentActorID: z.string().optional(),
-    status: ActorStatus,
-    lastOutcome: ActorOutcome.optional(),
-    lifecycle: Lifecycle,
-    agent: z.string(),
-    description: z.string(),
-    contextMode: ContextMode,
-    contextWatermark: MessageID.zod.optional(),
-    background: z.boolean(),
-    tools: ToolWhitelist.optional(),
-    lastTurnTime: z.number(),
-    turnCount: z.number(),
-    lastError: z.string().optional(),
-    time: z.object({
-      created: z.number(),
-      updated: z.number(),
-      completed: z.number().optional(),
-    }),
-  })
-  .meta({ ref: "Actor" })
+export const Actor = z.object({
+  sessionID: z.string(),
+  actorID: z.string(),
+  mode: SpawnMode,
+  parentActorID: z.string().optional(),
+  status: ActorStatus,
+  lastOutcome: ActorOutcome.optional(),
+  lifecycle: Lifecycle,
+  agent: z.string(),
+  description: z.string(),
+  contextMode: ContextMode,
+  contextWatermark: z.string().optional(),
+  background: z.boolean(),
+  tools: ToolWhitelist.optional(),
+  lastTurnTime: z.number(),
+  turnCount: z.number(),
+  lastError: z.string().optional(),
+  time: z.object({
+    created: z.number(),
+    updated: z.number(),
+    completed: z.number().optional(),
+  }),
+})
 export type Actor = z.infer<typeof Actor>

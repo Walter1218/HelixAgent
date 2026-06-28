@@ -1,21 +1,15 @@
 import { Context, Effect, Layer, Ref } from "effect"
-import { Bus } from "@/bus"
-import { Log } from "@/util"
 import { Task, TaskStatus, TaskEvent } from "./schema"
-import { TaskCreated, TaskStatusChanged, TaskCompleted } from "./events"
-import type { SessionID } from "@/session/schema"
-
-const log = Log.create({ service: "task.registry" })
 
 export interface Interface {
-  readonly create: (input: { sessionID: SessionID; title: string; parentID?: string; description?: string }) => Effect.Effect<Task>
+  readonly create: (input: { sessionID: string; title: string; parentID?: string; description?: string }) => Effect.Effect<Task>
   readonly start: (taskID: string) => Effect.Effect<void>
   readonly done: (taskID: string, summary?: string) => Effect.Effect<void>
   readonly block: (taskID: string, reason?: string) => Effect.Effect<void>
   readonly abandon: (taskID: string, reason?: string) => Effect.Effect<void>
   readonly get: (taskID: string) => Effect.Effect<Task | undefined>
-  readonly listBySession: (sessionID: SessionID) => Effect.Effect<Task[]>
-  readonly listActive: (sessionID: SessionID) => Effect.Effect<Task[]>
+  readonly listBySession: (sessionID: string) => Effect.Effect<Task[]>
+  readonly listActive: (sessionID: string) => Effect.Effect<Task[]>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/TaskRegistry") {}
@@ -32,12 +26,11 @@ function nextId(existing: Task[], parentID?: string): string {
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const bus = yield* Bus.Service
     const tasks = yield* Ref.make(new Map<string, Task>())
     const events = yield* Ref.make<TaskEvent[]>([])
 
     const create = Effect.fn("TaskRegistry.create")(function* (input: {
-      sessionID: SessionID
+      sessionID: string
       title: string
       parentID?: string
       description?: string
@@ -53,6 +46,8 @@ export const layer = Layer.effect(
         title: input.title,
         description: input.description,
         status: "open",
+        priority: "medium",
+        complexity: "moderate",
         createdAt: now,
         updatedAt: now,
       }
@@ -65,14 +60,6 @@ export const layer = Layer.effect(
       const event: TaskEvent = { id: `${id}-created`, taskID: id, at: now, kind: "created", summary: input.title }
       yield* Ref.update(events, (list) => [...list, event])
 
-      log.info("task.created", { taskID: id, title: input.title })
-      yield* bus.publish(TaskCreated, {
-        sessionID: input.sessionID,
-        taskID: id,
-        title: input.title,
-        parentID: input.parentID,
-      }).pipe(Effect.catch(() => Effect.void))
-
       return task
     })
 
@@ -83,9 +70,6 @@ export const layer = Layer.effect(
         if (task) map.set(taskID, { ...task, status: "in_progress", updatedAt: now })
         return map
       })
-      const event: TaskEvent = { id: `${taskID}-started`, taskID, at: now, kind: "started" }
-      yield* Ref.update(events, (list) => [...list, event])
-      log.info("task.started", { taskID })
     })
 
     const done = Effect.fn("TaskRegistry.done")(function* (taskID: string, summary?: string) {
@@ -95,9 +79,6 @@ export const layer = Layer.effect(
         if (task) map.set(taskID, { ...task, status: "done", updatedAt: now, completedAt: now })
         return map
       })
-      const event: TaskEvent = { id: `${taskID}-done`, taskID, at: now, kind: "done", summary }
-      yield* Ref.update(events, (list) => [...list, event])
-      log.info("task.done", { taskID })
     })
 
     const block = Effect.fn("TaskRegistry.block")(function* (taskID: string, reason?: string) {
@@ -107,9 +88,6 @@ export const layer = Layer.effect(
         if (task) map.set(taskID, { ...task, status: "blocked", updatedAt: now })
         return map
       })
-      const event: TaskEvent = { id: `${taskID}-blocked`, taskID, at: now, kind: "blocked", summary: reason }
-      yield* Ref.update(events, (list) => [...list, event])
-      log.info("task.blocked", { taskID })
     })
 
     const abandon = Effect.fn("TaskRegistry.abandon")(function* (taskID: string, reason?: string) {
@@ -119,9 +97,6 @@ export const layer = Layer.effect(
         if (task) map.set(taskID, { ...task, status: "abandoned", updatedAt: now, completedAt: now })
         return map
       })
-      const event: TaskEvent = { id: `${taskID}-abandoned`, taskID, at: now, kind: "abandoned", summary: reason }
-      yield* Ref.update(events, (list) => [...list, event])
-      log.info("task.abandoned", { taskID })
     })
 
     const get = Effect.fn("TaskRegistry.get")(function* (taskID: string) {
@@ -129,12 +104,12 @@ export const layer = Layer.effect(
       return map.get(taskID)
     })
 
-    const listBySession = Effect.fn("TaskRegistry.listBySession")(function* (sessionID: SessionID) {
+    const listBySession = Effect.fn("TaskRegistry.listBySession")(function* (sessionID: string) {
       const map = yield* Ref.get(tasks)
       return Array.from(map.values()).filter((t) => t.sessionID === sessionID)
     })
 
-    const listActive = Effect.fn("TaskRegistry.listActive")(function* (sessionID: SessionID) {
+    const listActive = Effect.fn("TaskRegistry.listActive")(function* (sessionID: string) {
       const map = yield* Ref.get(tasks)
       return Array.from(map.values()).filter(
         (t) => t.sessionID === sessionID && (t.status === "open" || t.status === "in_progress")
@@ -145,4 +120,4 @@ export const layer = Layer.effect(
   })
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Bus.defaultLayer))
+export const defaultLayer = layer

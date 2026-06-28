@@ -1,5 +1,4 @@
 import z from "zod"
-import { SessionID } from "@/session/schema"
 
 export const TaskStatus = z.enum(["open", "in_progress", "done", "blocked", "abandoned"])
 export type TaskStatus = z.infer<typeof TaskStatus>
@@ -12,7 +11,7 @@ export type TaskComplexity = z.infer<typeof TaskComplexity>
 
 export const Task = z.object({
   id: z.string(),
-  sessionID: SessionID.zod,
+  sessionID: z.string(),
   parentID: z.string().optional(),
   title: z.string(),
   description: z.string().optional(),

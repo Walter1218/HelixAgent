@@ -1,8 +1,5 @@
 import { Context, Effect, Layer, Ref } from "effect"
-import { Log } from "@/util"
 import z from "zod"
-
-const log = Log.create({ service: "mode.registry" })
 
 export const ModeId = z.enum(["ask", "build", "plan", "compose", "max", "loop"])
 export type ModeId = z.infer<typeof ModeId>
