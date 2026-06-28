@@ -1,7 +1,3 @@
-import { Log } from "../util"
-
-const log = Log.create({ service: "embedder" })
-
 export interface EmbedderConfig {
   baseUrl: string
   model: string
@@ -33,17 +29,17 @@ export class Embedder {
         body: JSON.stringify({ model: this.config_.model, input: texts }),
       })
       if (!res.ok) {
-        log.error("embedding API failed", { status: res.status })
+        console.error("embedding API failed", { status: res.status })
         return texts.map(() => new Array(768).fill(0))
       }
       const data = (await res.json()) as { data?: Array<{ embedding: number[] }> }
       if (!data.data || data.data.length !== texts.length) {
-        log.error("embedding count mismatch", { expected: texts.length, got: data.data?.length ?? 0 })
+        console.error("embedding count mismatch", { expected: texts.length, got: data.data?.length ?? 0 })
         return texts.map(() => new Array(768).fill(0))
       }
       return data.data.map((d) => d.embedding)
     } catch (err) {
-      log.error("embedding API error", { error: String(err) })
+      console.error("embedding API error", { error: String(err) })
       return texts.map(() => new Array(768).fill(0))
     }
   }

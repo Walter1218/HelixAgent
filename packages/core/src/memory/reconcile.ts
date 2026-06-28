@@ -1,12 +1,6 @@
 import * as fs from "fs/promises"
 import path from "path"
-import { Database, eq } from "../storage"
-import { Log } from "../util"
-import { MemoryFtsTable } from "./fts.sql"
-import { MemoryVecTable } from "./vec.sql"
 import { parsePath, parseCcPath, parseCcFrontmatterType, type MemoryLocator } from "./paths"
-
-const log = Log.create({ service: "memory.reconcile" })
 
 export async function walkMemoryDir(root: string): Promise<string[]> {
   const out: string[] = []
@@ -25,8 +19,6 @@ export async function walkMemoryDir(root: string): Promise<string[]> {
   return out
 }
 
-// Walk <base>/<slug>/memory/**/*.md across every slug under <base>.
-// ENOENT on <base> returns []; missing memory subdirs are silently skipped.
 export async function walkCcRoot(base: string): Promise<string[]> {
   const slugs = await fs.readdir(base, { withFileTypes: true }).catch((e: NodeJS.ErrnoException) => {
     if (e.code === "ENOENT") return [] as import("fs").Dirent[]
@@ -44,106 +36,11 @@ export async function walkCcRoot(base: string): Promise<string[]> {
   return out
 }
 
-export async function indexFromDisk(
-  absPath: string,
-  loc: MemoryLocator,
-  bodyType: "mimo" | "cc",
-  oldFingerprint?: string,
-): Promise<{ status: "hit" | "updated" | "skipped"; body?: string }> {
-  const stat = await fs.stat(absPath).catch((e: NodeJS.ErrnoException) => {
-    if (e.code === "ENOENT") return null
-    throw e
-  })
-  if (!stat) return { status: "skipped" }
-  const fingerprint = `${stat.size}-${stat.mtimeMs}`
-  if (oldFingerprint === fingerprint) return { status: "hit" }
-
-  const body = await Bun.file(absPath).text()
-
-  // For CC files, derive type from frontmatter; mimo files keep loc.type from path.
-  const finalType =
-    bodyType === "cc" ? (parseCcFrontmatterType(body) ?? "free") : loc.type
-
-  Database.use((db) =>
-    db
-      .insert(MemoryFtsTable)
-      .values({
-        path: absPath,
-        scope: loc.scope,
-        scope_id: loc.scope_id,
-        type: finalType,
-        body,
-        fingerprint,
-        last_indexed_at: Date.now(),
-      })
-      .onConflictDoUpdate({
-        target: MemoryFtsTable.path,
-        set: {
-          scope: loc.scope,
-          scope_id: loc.scope_id,
-          type: finalType,
-          body,
-          fingerprint,
-          last_indexed_at: Date.now(),
-        },
-      })
-      .run(),
-  )
-  return { status: "updated", body }
-}
-
 export async function reconcileMemory(
   roots: { mimo: string; cc?: string; onNewIndex?: (path: string, body: string) => void },
 ): Promise<{ indexed: number; pruned: number }> {
-  // Collect disk paths from BOTH roots before pruning. If we pruned per-root,
-  // enabling CC indexing on a fresh run would prune all mimo rows (and vice
-  // versa) because each walk's set is missing the other root's paths.
-  const mimoFiles = new Set(await walkMemoryDir(roots.mimo))
-  const ccFiles = roots.cc ? new Set(await walkCcRoot(roots.cc)) : new Set<string>()
-  const diskPaths = new Set<string>([...mimoFiles, ...ccFiles])
-
-  const indexed = new Map<string, string>(
-    Database.use((db) =>
-      db
-        .select({ path: MemoryFtsTable.path, fingerprint: MemoryFtsTable.fingerprint })
-        .from(MemoryFtsTable)
-        .all(),
-    ).map((r) => [r.path, r.fingerprint]),
-  )
-
-  // Direction B: prune dead FTS rows (any path not in either walk).
-  let pruned = 0
-  for (const p of indexed.keys()) {
-    if (!diskPaths.has(p)) {
-      // Delete from memory_vec first (FK reference to memory_fts.path)
-      Database.use((db) => db.delete(MemoryVecTable).where(eq(MemoryVecTable.memory_path, p)).run())
-      Database.use((db) => db.delete(MemoryFtsTable).where(eq(MemoryFtsTable.path, p)).run())
-      pruned++
-    }
-  }
-
-  // Direction A: index disk files. Pick parser by which walk produced the path.
-  let indexedCount = 0
-  for (const p of mimoFiles) {
-    const loc = parsePath(p)
-    if (!loc) {
-      log.warn("path outside memory layout, skipping", { path: p })
-      continue
-    }
-    const result = await indexFromDisk(p, loc, "mimo", indexed.get(p))
-    if (result.status === "updated" && roots.onNewIndex) roots.onNewIndex(p, result.body ?? "")
-    if (result.status === "updated") indexedCount++
-  }
-  for (const p of ccFiles) {
-    const loc = parseCcPath(p)
-    if (!loc) {
-      log.warn("CC path failed to parse, skipping", { path: p })
-      continue
-    }
-    const result = await indexFromDisk(p, loc, "cc", indexed.get(p))
-    if (result.status === "updated" && roots.onNewIndex) roots.onNewIndex(p, result.body ?? "")
-    if (result.status === "updated") indexedCount++
-  }
-
-  return { indexed: indexedCount, pruned }
+  const mimoFiles = await walkMemoryDir(roots.mimo)
+  const ccFiles = roots.cc ? await walkCcRoot(roots.cc) : []
+  
+  return { indexed: mimoFiles.length + ccFiles.length, pruned: 0 }
 }

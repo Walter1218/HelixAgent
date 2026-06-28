@@ -24,11 +24,6 @@ export interface MemoryLocator {
 }
 
 const TYPE_PATTERNS: Array<{ match: RegExp; type: MemoryType }> = [
-  // Only `memory` is case-insensitive: it's the one file renamed lowercase
-  // memory.md → MEMORY.md, so the index must bridge both casings during/after
-  // migration. checkpoint/tasks/notes have no legacy-casing bridge and stay
-  // exact — if a writer ever drifts to CHECKPOINT.md it should NOT silently
-  // classify as checkpoint.
   { match: /^memory$/i, type: "memory" },
   { match: /^memory-/i, type: "memory" },
   { match: /^checkpoint$/, type: "checkpoint" },
@@ -51,9 +46,6 @@ export function parsePath(absPath: string): MemoryLocator | null {
   return { scope: scope as Scope, scope_id, type: detectType(key), key }
 }
 
-// Match: <anything>/.claude/projects/<slug>/memory/<key>.md
-// <slug> is a single path segment (CC's path-derived project identifier).
-// <key> may contain '/' for nested dirs.
 const CC_PATH_RE = /\/\.claude\/projects\/([^/]+)\/memory\/(.+)\.md$/
 
 export function parseCcPath(absPath: string): MemoryLocator | null {
@@ -63,24 +55,12 @@ export function parseCcPath(absPath: string): MemoryLocator | null {
   return {
     scope: "cc",
     scope_id: slug,
-    type: "free", // type is finalized from frontmatter at index time
+    type: "free",
     key: keyRaw,
   }
 }
 
-// Match the YAML frontmatter region of a CC memory file.
-// Captures the YAML block between the leading "---\n" and the closing "\n---\n".
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n/
-
-// Match `<indent>type: <word>` inside the YAML block. The indent requirement
-// pins the line to the `metadata:` sub-tree — a top-level `type:` (no indent)
-// must NOT match.
-//
-// Limitation: this matches ANY indented `type:` line, not specifically one
-// nested under `metadata:`. CC's frontmatter today only nests `type` under
-// `metadata`, so the structural assumption holds by convention. If CC ever
-// adds a sibling block like `feedback:\n  type: highpri\n`, that would
-// shadow `metadata.type` and need a real parser.
 const METADATA_TYPE_RE = /^[ \t]+type:[ \t]*(\w+)[ \t]*$/m
 
 export function parseCcFrontmatterType(body: string): CcType | null {
@@ -94,8 +74,6 @@ export function parseCcFrontmatterType(body: string): CcType | null {
 }
 
 function assertSafeComponent(value: string) {
-  // Reject any segment containing ".." or starting with "/" — guards against
-  // path traversal and absolute-path injection from caller-supplied scope_id/key.
   for (const segment of value.split("/")) {
     if (segment === "..") throw new Error(`buildPath: invalid path component: ${value}`)
   }
