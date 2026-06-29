@@ -56,7 +56,9 @@ npm install -g @mimo-ai/cli
 
 ### 配置
 
-创建 `~/.config/mimocode/mimocode.json`:
+创建 `~/.config/opencode/config.json`:
+
+#### MiMo Token Plan (推荐)
 
 ```json
 {
@@ -82,6 +84,49 @@ npm install -g @mimo-ai/cli
   "model": "xiaomi/mimo-v2.5-pro"
 }
 ```
+
+#### Kimi for Coding
+
+```json
+{
+  "provider": {
+    "kimi": {
+      "name": "Kimi for Coding",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["MOONSHOT_API_KEY"],
+      "options": {
+        "apiKey": "${MOONSHOT_API_KEY}",
+        "baseURL": "https://api.moonshot.cn/v1"
+      },
+      "models": {
+        "kimi-k2.7-code": {
+          "name": "Kimi K2.7 Code",
+          "tool_call": true,
+          "reasoning": true,
+          "limit": { "context": 131072, "output": 8192 }
+        },
+        "kimi-k2.6": {
+          "name": "Kimi K2.6",
+          "tool_call": true,
+          "reasoning": true,
+          "limit": { "context": 131072, "output": 8192 }
+        }
+      }
+    }
+  },
+  "model": "kimi/kimi-k2.7-code"
+}
+```
+
+#### 其他Provider
+
+支持所有OpenAI兼容的API，包括：
+- OpenAI / Azure OpenAI
+- Anthropic (Claude)
+- DeepSeek
+- 通义千问
+- 智谱GLM
+- 等等
 
 ### 运行
 
