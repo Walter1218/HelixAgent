@@ -26,4 +26,4 @@ export function formatHistoryConfig(config: HistoryConfig): string {
   return `History: ${config.enabled ? "enabled" : "disabled"}, kinds: ${config.kinds.join(", ")}`
 }
 
-export * as Config from "./config"
+export * as ConfigSkills from "./skills"
