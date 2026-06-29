@@ -3,6 +3,7 @@
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk-next` composes Client, Core, and Server.
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
+- When injecting, reordering, or transforming LLM prompt context, follow `specs/prompt-context-assembly.md`.
 
 ## Branch Names
 
@@ -147,6 +148,18 @@ const table = sqliteTable("session", {
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
+
+## Prompt Context Assembly
+
+When adding context to the LLM prompt, keep the system prompt stable prefix intact:
+
+- Provider persona and static instructions (`AGENTS.md`, `CLAUDE.md`, config instructions) must come first in the system prompt.
+- Environment metadata, references, MCP instructions, skills, and per-user system overrides go after the static prefix.
+- Any per-turn dynamic context (changed files, blast radius, memory results, workflow status, team context) must be injected into the latest user message or a tool result, never into the system prompt.
+- Do not let plugins insert content between the provider persona and the rest of the system prompt.
+- All system prompt assembly must use `SystemPromptBuilder.build(...)` from `packages/opencode/src/session/system-prompt-builder.ts`. Do not construct the system prompt array inline. If you need to add a new system prompt component, extend `SystemPromptBuilder.SystemParts` and update the builder order only after checking the cache impact.
+
+See `specs/prompt-context-assembly.md` for the full specification and checklist.
 
 ## V2 Session Core
 

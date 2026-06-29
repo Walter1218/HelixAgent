@@ -201,6 +201,40 @@ describe("Instruction.resolve", () => {
   test.todo("fetches remote instructions from config URLs via HttpClient", () => {})
 })
 
+describe("Instruction.system caching", () => {
+  it.live("caches system() result within a session", () =>
+    withFiles({ "AGENTS.md": "# Root Instructions" }, (dir) =>
+      Effect.gen(function* () {
+        const svc = yield* Instruction.Service
+        const first = yield* svc.system()
+        // Modify the file after the first read to prove the cache is used.
+        const fs = yield* FileSystem.FileSystem
+        yield* fs.writeFileString(path.join(dir, "AGENTS.md"), "# Modified Instructions")
+        const second = yield* svc.system()
+        expect(second).toEqual(first)
+        expect(second[0]).toBe(`Instructions from: ${path.join(dir, "AGENTS.md")}\n# Root Instructions`)
+      }),
+    ),
+  )
+
+  it.live("clears system() cache on clear()", () =>
+    withFiles({ "AGENTS.md": "# Root Instructions" }, (dir) =>
+      Effect.gen(function* () {
+        const svc = yield* Instruction.Service
+        const first = yield* svc.system()
+
+        const fs = yield* FileSystem.FileSystem
+        yield* fs.writeFileString(path.join(dir, "AGENTS.md"), "# Modified Instructions")
+
+        yield* svc.clear(MessageID.make("msg_message-test-clear"))
+        const second = yield* svc.system()
+        expect(second).not.toEqual(first)
+        expect(second[0]).toBe(`Instructions from: ${path.join(dir, "AGENTS.md")}\n# Modified Instructions`)
+      }),
+    ),
+  )
+})
+
 describe("Instruction.system", () => {
   it.live("loads both project and global AGENTS.md when both exist", () =>
     Effect.gen(function* () {

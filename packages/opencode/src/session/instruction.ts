@@ -72,6 +72,7 @@ export const layer: Layer.Layer<
         Effect.succeed({
           // Track which instruction files have already been attached for a given assistant message.
           claims: new Map<MessageID, Set<string>>(),
+          systemCache: null as string[] | null,
         }),
       ),
     )
@@ -105,6 +106,7 @@ export const layer: Layer.Layer<
     const clear = Effect.fn("Instruction.clear")(function* (messageID: MessageID) {
       const s = yield* InstanceState.get(state)
       s.claims.delete(messageID)
+      s.systemCache = null
     })
 
     const systemPaths = Effect.fn("Instruction.systemPaths")(function* () {
@@ -153,6 +155,9 @@ export const layer: Layer.Layer<
     })
 
     const system = Effect.fn("Instruction.system")(function* () {
+      const s = yield* InstanceState.get(state)
+      if (s.systemCache) return s.systemCache
+
       const config = yield* cfg.get()
       const paths = yield* systemPaths()
       const urls = (config.instructions ?? []).filter(
@@ -162,10 +167,11 @@ export const layer: Layer.Layer<
       const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
       const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
 
-      return [
+      s.systemCache = [
         ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
         ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
       ]
+      return s.systemCache
     })
 
     const find = Effect.fn("Instruction.find")(function* (dir: string) {

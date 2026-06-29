@@ -62,6 +62,7 @@ import { ModeRegistry } from "@/session/mode-registry"
 import { AutoDream } from "@/session/auto-dream"
 import { SessionCheckpoint } from "@/session/checkpoint"
 import { DREAM_TASK, DISTILL_TASK } from "@/session/auto-dream"
+import { SystemPromptBuilder } from "./system-prompt-builder"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -84,8 +85,6 @@ IMPORTANT:
 - The input must be valid JSON matching the required schema
 - Complete all necessary research and tool calls BEFORE calling this tool
 - This tool provides your final answer - no further actions are taken after calling it`
-
-const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
 function mcpResourceBase64Size(value: string) {
   const trimmed = value.replace(/\s/g, "")
@@ -1271,14 +1270,15 @@ export const layer = Layer.effect(
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            const system = [
-              ...env,
-              ...instructions,
-              ...(mcpInstructions ? [mcpInstructions] : []),
-              ...(skills ? [skills] : []),
-            ]
+            const system = SystemPromptBuilder.build({
+              instructions,
+              environment: env,
+              mcpInstructions,
+              skills,
+              structuredOutput: (lastUser.format ?? { type: "text" as const }).type === "json_schema",
+              userSystem: lastUser.system,
+            })
             const format = lastUser.format ?? { type: "text" as const }
-            if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
             const result = yield* handle.process({
               user: lastUser,
               agent,
