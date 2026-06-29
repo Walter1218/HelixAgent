@@ -89,7 +89,7 @@ describe("TUI Components", () => {
       const fs = await import("fs")
       const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/dialog-mode.tsx", "utf-8")
       expect(content).toContain("DialogMode")
-      expect(content).toContain("Select mode")
+      expect(content).toContain("Select Mode")
     })
   })
 

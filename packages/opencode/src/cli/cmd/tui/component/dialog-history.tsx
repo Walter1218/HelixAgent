@@ -1,8 +1,4 @@
 import { createMemo, createSignal, For, Show } from "solid-js"
-import { TextAttributes } from "@opentui/core"
-import { useTheme } from "../context/theme"
-import { useDialog } from "../ui/dialog"
-import { useSDK } from "../context/sdk"
 
 interface HistoryResult {
   sessionID: string
@@ -13,10 +9,10 @@ interface HistoryResult {
   time: number
 }
 
-export function DialogHistory() {
-  const { theme } = useTheme()
-  const dialog = useDialog()
-  const sdk = useSDK()
+export function DialogHistory(props: {
+  onSearch: (query: string) => Promise<HistoryResult[]>
+  onClose: () => void
+}) {
   const [query, setQuery] = createSignal("")
   const [results, setResults] = createSignal<HistoryResult[]>([])
   const [loading, setLoading] = createSignal(false)
@@ -25,8 +21,8 @@ export function DialogHistory() {
     if (!query().trim()) return
     setLoading(true)
     try {
-      const response = await sdk.client.history.search({ query: query() })
-      setResults(response.data ?? [])
+      const data = await props.onSearch(query())
+      setResults(data)
     } catch (error) {
       console.error("History search failed:", error)
     } finally {
@@ -41,8 +37,8 @@ export function DialogHistory() {
   return (
     <box flexDirection="column" gap={1} padding={2}>
       <box flexDirection="row" justifyContent="space-between">
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>History Search</text>
-        <text fg={theme.textMuted} onClick={() => dialog.clear()}>esc</text>
+        <text style={{ bold: true }}>History Search</text>
+        <text style={{ color: "#888" }} onClick={props.onClose}>esc</text>
       </box>
       
       <input 
@@ -53,20 +49,20 @@ export function DialogHistory() {
       />
       
       <Show when={loading()}>
-        <text fg={theme.textMuted}>Searching...</text>
+        <text style={{ color: "#888" }}>Searching...</text>
       </Show>
       
       <Show when={!loading() && results().length === 0 && query().trim()}>
-        <text fg={theme.textMuted}>No results found</text>
+        <text style={{ color: "#888" }}>No results found</text>
       </Show>
       
       <For each={results()}>
         {(result) => (
           <box flexDirection="column" gap={0} padding={1}>
-            <text fg={theme.text}>
+            <text>
               {result.sessionID} - {formatDate(result.time)} ({result.kind})
             </text>
-            <text fg={theme.textMuted}>{result.snippet}</text>
+            <text style={{ color: "#888" }}>{result.snippet}</text>
           </box>
         )}
       </For>

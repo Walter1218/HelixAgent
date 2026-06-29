@@ -1,6 +1,4 @@
 import { createMemo, Show } from "solid-js"
-import { TextAttributes } from "@opentui/core"
-import { useTheme } from "../context/theme"
 
 interface CardinalAlertProps {
   level: "block" | "pause" | "stop" | "warn"
@@ -11,13 +9,11 @@ interface CardinalAlertProps {
 }
 
 export function CardinalAlert(props: CardinalAlertProps) {
-  const { theme } = useTheme()
-  
   const levelColors = {
-    block: theme.error,
-    pause: theme.warning,
-    stop: theme.warning,
-    warn: theme.textMuted,
+    block: "#ef4444",
+    pause: "#fbbf24",
+    stop: "#fbbf24",
+    warn: "#888",
   }
   
   const levelLabels = {
@@ -29,16 +25,16 @@ export function CardinalAlert(props: CardinalAlertProps) {
   
   return (
     <box flexDirection="column" gap={1} padding={1}>
-      <text fg={levelColors[props.level]} attributes={TextAttributes.BOLD}>
+      <text style={{ color: levelColors[props.level], bold: true }}>
         ⚠️ Cardinal Alert: {props.reason}
       </text>
-      <text fg={theme.text}>Level: {levelLabels[props.level]}</text>
+      <text>Level: {levelLabels[props.level]}</text>
       <Show when={props.suggestion}>
-        <text fg={theme.textMuted}>Suggestion: {props.suggestion}</text>
+        <text style={{ color: "#888" }}>Suggestion: {props.suggestion}</text>
       </Show>
       <box flexDirection="row" gap={2}>
-        <text fg={theme.error} onClick={props.onStop}>[Stop]</text>
-        <text fg={theme.textMuted} onClick={props.onIgnore}>[Ignore]</text>
+        <text style={{ color: "#ef4444" }} onClick={props.onStop}>[Stop]</text>
+        <text style={{ color: "#888" }} onClick={props.onIgnore}>[Ignore]</text>
       </box>
     </box>
   )

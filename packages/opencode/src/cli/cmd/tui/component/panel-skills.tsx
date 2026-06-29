@@ -1,25 +1,22 @@
 import { createMemo, For, Show } from "solid-js"
-import { TextAttributes } from "@opentui/core"
-import { useTheme } from "../context/theme"
-import { useSync } from "../context/sync"
 
-export function SkillPanel() {
-  const { theme } = useTheme()
-  const sync = useSync()
-  
-  const skills = createMemo(() => {
-    return sync.data.skills ?? []
-  })
+interface Skill {
+  name: string
+  description?: string
+}
+
+export function SkillPanel(props: { skills?: Skill[] }) {
+  const skills = createMemo(() => props.skills ?? [])
   
   return (
     <Show when={skills().length > 0}>
       <box flexDirection="column" gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>Skills</text>
+        <text style={{ bold: true }}>Skills</text>
         <For each={skills()}>
-          {(skill: any) => (
+          {(skill) => (
             <box flexDirection="row" gap={1}>
-              <text fg={theme.textMuted}>→</text>
-              <text fg={theme.text}>{skill.name}</text>
+              <text style={{ color: "#888" }}>→</text>
+              <text>{skill.name}</text>
             </box>
           )}
         </For>

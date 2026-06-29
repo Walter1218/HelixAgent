@@ -1,28 +1,22 @@
 import { createMemo, For } from "solid-js"
-import { TextAttributes } from "@opentui/core"
-import { useTheme } from "../context/theme"
-import { useLocal } from "../context/local"
 
-export function AgentPanel() {
-  const { theme } = useTheme()
-  const local = useLocal()
-  
-  const agents = createMemo(() => {
-    return local.agent.list().filter((a: any) => !a.hidden)
-  })
-  
-  const current = createMemo(() => {
-    return local.agent.current()?.name
-  })
+interface Agent {
+  name: string
+  hidden?: boolean
+}
+
+export function AgentPanel(props: { agents?: Agent[]; current?: string }) {
+  const agents = createMemo(() => (props.agents ?? []).filter(a => !a.hidden))
+  const current = createMemo(() => props.current)
   
   return (
     <box flexDirection="column" gap={0}>
-      <text fg={theme.text} attributes={TextAttributes.BOLD}>Agents</text>
+      <text style={{ bold: true }}>Agents</text>
       <For each={agents()}>
-        {(agent: any) => (
+        {(agent) => (
           <box flexDirection="row" gap={1}>
-            <text fg={agent.name === current() ? theme.success : theme.textMuted}>●</text>
-            <text fg={agent.name === current() ? theme.text : theme.textMuted}>{agent.name}</text>
+            <text style={{ color: agent.name === current() ? "#4ade80" : "#888" }}>●</text>
+            <text style={{ color: agent.name === current() ? "#fff" : "#888" }}>{agent.name}</text>
           </box>
         )}
       </For>

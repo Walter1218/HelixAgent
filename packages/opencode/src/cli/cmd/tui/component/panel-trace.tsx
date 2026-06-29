@@ -1,48 +1,41 @@
 import { createMemo, For, Show } from "solid-js"
-import { TextAttributes } from "@opentui/core"
-import { useTheme } from "../context/theme"
-import { useSync } from "../context/sync"
-import { useRoute } from "../context/route"
 
-interface TraceNode {
+interface TraceEvent {
   id: string
+  parentId?: string
   name: string
   status: "success" | "failed" | "pending"
   duration?: number
+  timestamp: number
+}
+
+interface TraceNode extends TraceEvent {
   children: TraceNode[]
 }
 
-export function TracePanel() {
-  const { theme } = useTheme()
-  const sync = useSync()
-  const route = useRoute()
-  
-  const traces = createMemo(() => {
-    if (route.type !== "session") return []
-    return sync.data.traces?.[route.sessionID] ?? []
-  })
-  
+export function TracePanel(props: { traces?: TraceEvent[] }) {
+  const traces = createMemo(() => props.traces ?? [])
   const tree = createMemo(() => buildTraceTree(traces()))
   
   const totalDuration = createMemo(() => {
     const events = traces()
     if (events.length === 0) return 0
-    const starts = events.map((e: any) => e.timestamp)
-    const ends = events.map((e: any) => e.timestamp + (e.duration || 0))
+    const starts = events.map(e => e.timestamp)
+    const ends = events.map(e => e.timestamp + (e.duration || 0))
     return Math.max(...ends) - Math.min(...starts)
   })
   
-  const successCount = createMemo(() => traces().filter((t: any) => t.status === "success").length)
-  const failedCount = createMemo(() => traces().filter((t: any) => t.status === "failed").length)
+  const successCount = createMemo(() => traces().filter(t => t.status === "success").length)
+  const failedCount = createMemo(() => traces().filter(t => t.status === "failed").length)
   
   return (
     <Show when={traces().length > 0}>
       <box flexDirection="column" gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>Execution Trace</text>
+        <text style={{ bold: true }}>Execution Trace</text>
         <For each={tree()}>
           {(node) => <TraceNodeComponent node={node} level={0} />}
         </For>
-        <text fg={theme.textMuted}>
+        <text style={{ color: "#888" }}>
           Total: {formatDuration(totalDuration())} | {traces().length} events | ✓{successCount()} ✗{failedCount()}
         </text>
       </box>
@@ -51,13 +44,12 @@ export function TracePanel() {
 }
 
 function TraceNodeComponent(props: { node: TraceNode; level: number }) {
-  const { theme } = useTheme()
   const indent = "  ".repeat(props.level)
   const icon = props.node.status === "success" ? "✓" : props.node.status === "failed" ? "✗" : "…"
   
   return (
     <box flexDirection="column">
-      <text fg={props.node.status === "failed" ? theme.error : theme.text}>
+      <text style={{ color: props.node.status === "failed" ? "#ef4444" : "#fff" }}>
         {indent}{icon} {props.node.name} ({formatDuration(props.node.duration ?? 0)})
       </text>
       <For each={props.node.children}>
@@ -73,7 +65,7 @@ function formatDuration(ms: number): string {
   return `${Math.floor(ms / 60000)}m${Math.round((ms % 60000) / 1000)}s`
 }
 
-function buildTraceTree(events: any[]): TraceNode[] {
+function buildTraceTree(events: TraceEvent[]): TraceNode[] {
   const map = new Map<string, TraceNode>()
   const roots: TraceNode[] = []
   

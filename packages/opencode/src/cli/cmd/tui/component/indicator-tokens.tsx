@@ -1,22 +1,8 @@
 import { createMemo } from "solid-js"
-import { useTheme } from "../context/theme"
-import { useSync } from "../context/sync"
-import { useRoute } from "../context/route"
 
-export function TokenIndicator() {
-  const { theme } = useTheme()
-  const sync = useSync()
-  const route = useRoute()
-  
-  const used = createMemo(() => {
-    if (route.type !== "session") return 0
-    return sync.data.session?.find(s => s.id === route.sessionID)?.tokensUsed ?? 0
-  })
-  
-  const budget = createMemo(() => {
-    return sync.data.config?.tokenBudget?.daily ?? 1000000
-  })
-  
+export function TokenIndicator(props: { used?: number; budget?: number }) {
+  const used = createMemo(() => props.used ?? 0)
+  const budget = createMemo(() => props.budget ?? 1000000)
   const percentage = createMemo(() => (used() / budget()) * 100)
   
   const formatTokens = (tokens: number): string => {
@@ -26,7 +12,7 @@ export function TokenIndicator() {
   }
   
   return (
-    <text fg={percentage() > 80 ? theme.error : theme.textMuted}>
+    <text style={{ color: percentage() > 80 ? "#ef4444" : "#888" }}>
       {formatTokens(used())}/{formatTokens(budget())} tokens
     </text>
   )

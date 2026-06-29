@@ -1,12 +1,7 @@
 import { createMemo, Show } from "solid-js"
-import { useTheme } from "../context/theme"
-import { useLocal } from "../context/local"
 
-export function ModeIndicator() {
-  const { theme } = useTheme()
-  const local = useLocal()
-  
-  const mode = createMemo(() => local.agent.current()?.name ?? "build")
+export function ModeIndicator(props: { mode?: string }) {
+  const mode = createMemo(() => props.mode ?? "build")
   
   const modeConfig: Record<string, { color: string; label: string }> = {
     ask: { color: "#4a9eff", label: "Ask" },
@@ -20,7 +15,7 @@ export function ModeIndicator() {
   const config = createMemo(() => modeConfig[mode()] ?? modeConfig.build)
   
   return (
-    <text fg={config().color}>
+    <text style={{ color: config().color }}>
       {config().label}
     </text>
   )
