@@ -110,4 +110,32 @@ describe("TUI Components", () => {
       expect(content).toContain("History Search")
     })
   })
+
+  describe("AlignmentAlert", () => {
+    it("should export alignment alert component", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/alert-alignment.tsx", "utf-8")
+      expect(content).toContain("AlignmentAlert")
+      expect(content).toContain("Alignment Alert")
+    })
+  })
+
+  describe("FooterWithIndicators", () => {
+    it("should export footer indicators component", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/footer-indicators.tsx", "utf-8")
+      expect(content).toContain("FooterWithIndicators")
+      expect(content).toContain("tokens")
+    })
+  })
+
+  describe("SidebarWithPanels", () => {
+    it("should export sidebar panels component", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/sidebar-panels.tsx", "utf-8")
+      expect(content).toContain("SidebarWithPanels")
+      expect(content).toContain("Tasks")
+      expect(content).toContain("Subagents")
+    })
+  })
 })
