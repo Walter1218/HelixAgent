@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test"
 
 // LLM驱动的端到端验证
-// 需要启动服务并配置OPENAI_API_KEY
+// 需要启动服务
 
 const SERVER_URL = process.env.OPENCODE_SERVER_URL || "http://localhost:3096"
-const API_KEY = process.env.OPENAI_API_KEY
+const API_KEY = process.env.MIMO_API_KEY || process.env.OPENAI_API_KEY
 
 async function chat(sessionId: string, message: string, agent: string = "build") {
   const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}/messages`, {
@@ -27,7 +27,7 @@ async function createSession() {
   return response.json()
 }
 
-describe.skipIf(!API_KEY)("LLM驱动端到端验证", () => {
+describe("LLM驱动端到端验证", () => {
   let sessionId: string
 
   beforeAll(async () => {
