@@ -32,8 +32,12 @@ export function createTraceId(): string {
 export function formatTraceTree(events: TraceEvent[]): string {
   if (events.length === 0) return "(no trace events)"
 
-  const map = new Map<string, TraceEvent & { children: TraceEvent[] }>()
-  const roots: TraceEvent[] = []
+  interface TreeNode extends TraceEvent {
+    children: TreeNode[]
+  }
+
+  const map = new Map<string, TreeNode>()
+  const roots: TreeNode[] = []
 
   for (const ev of events) {
     map.set(ev.id, { ...ev, children: [] })
@@ -48,7 +52,7 @@ export function formatTraceTree(events: TraceEvent[]): string {
   }
 
   const lines: string[] = []
-  const render = (node: TraceEvent & { children: TraceEvent[] }, prefix: string, isLast: boolean) => {
+  const render = (node: TreeNode, prefix: string, isLast: boolean) => {
     const connector = isLast ? "└── " : "├── "
     const icon = node.status === "success" ? "✓" : node.status === "failed" ? "✗" : "…"
     const dur = node.duration ? ` (${formatDuration(node.duration)})` : ""
