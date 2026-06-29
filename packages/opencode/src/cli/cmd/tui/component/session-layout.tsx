@@ -82,7 +82,7 @@ export function SessionLayout(props: SessionLayoutProps) {
           
           {/* Input Area */}
           <box flexShrink={0}>
-            <text>> Type a message...</text>
+            <text>&gt; Type a message...</text>
           </box>
         </box>
         
