@@ -22,6 +22,7 @@ import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { ActorRegistry } from "@/actor/registry"
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -46,6 +47,7 @@ const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     ToolRegistry.defaultLayer,
     Database.defaultLayer,
     RuntimeFlags.layer(flags),
+    ActorRegistry.defaultLayer,
   ).pipe(Layer.provide(Ripgrep.defaultLayer))
 
 const it = testEffect(layer())

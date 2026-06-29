@@ -56,6 +56,12 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
+import { AlignmentGuard } from "@/observability/alignment-guard"
+import { Goal } from "@/session/goal"
+import { ModeRegistry } from "@/session/mode-registry"
+import { AutoDream } from "@/session/auto-dream"
+import { SessionCheckpoint } from "@/session/checkpoint"
+import { DREAM_TASK, DISTILL_TASK } from "@/session/auto-dream"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -140,6 +146,11 @@ export const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
+    const alignment = yield* AlignmentGuard.Service
+    const goal = yield* Goal.Service
+    const modeRegistry = yield* ModeRegistry.Service
+    const autoDream = yield* AutoDream.Service
+    const checkpoint = yield* SessionCheckpoint.Service
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
       return {
@@ -1331,10 +1342,63 @@ export const layer = Layer.effect(
             Effect.onInterrupt(() => finalizeInterruptedAssistant),
           )
           if (outcome === "break") break
+
+          const currentGoal = yield* goal.get(sessionID)
+          if (currentGoal) {
+            const evolutionConfig = yield* modeRegistry.getEvolutionConfig(lastUser.agent)
+            if (evolutionConfig.judgeEnabled) {
+              const reactCount = yield* goal.bumpReact(sessionID)
+              if (reactCount >= 12) {
+                yield* goal.clear(sessionID)
+                break
+              }
+            }
+          }
+
           continue
         }
 
         yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
+
+        const finalMsgs = yield* MessageV2.filterCompactedEffect(sessionID).pipe(
+          Effect.provideService(Database.Service, database),
+        )
+        const recentCommands = finalMsgs
+          .slice(-10)
+          .flatMap((m) => m.parts.filter((p) => p.type === "tool" && p.tool === "shell"))
+          .map((p) => {
+            const state = (p as { state?: { input?: { command?: string } } }).state
+            return state?.input?.command ?? ""
+          })
+        const isRabbitHole = yield* alignment.detectRabbitHole(recentCommands)
+        if (isRabbitHole) {
+          yield* Effect.logWarning("alignment: rabbit hole detected", { "session.id": sessionID })
+        }
+
+        yield* checkpoint.tryStartCheckpointWriter(sessionID).pipe(Effect.ignore, Effect.forkIn(scope))
+
+        const dreamTrigger = yield* autoDream.shouldAutoDream()
+        if (dreamTrigger) {
+          yield* Effect.logInfo("triggering auto-dream", { "session.id": sessionID })
+          const dreamSession = yield* sessions.create({ title: "Auto Dream", agent: "dream" })
+          yield* prompt({
+            sessionID: dreamSession.id,
+            agent: "dream",
+            parts: [{ type: "text", text: DREAM_TASK }],
+          }).pipe(Effect.ignore, Effect.forkIn(scope))
+        }
+
+        const distillTrigger = yield* autoDream.shouldAutoDistill()
+        if (distillTrigger) {
+          yield* Effect.logInfo("triggering auto-distill", { "session.id": sessionID })
+          const distillSession = yield* sessions.create({ title: "Auto Distill", agent: "distill" })
+          yield* prompt({
+            sessionID: distillSession.id,
+            agent: "distill",
+            parts: [{ type: "text", text: DISTILL_TASK }],
+          }).pipe(Effect.ignore, Effect.forkIn(scope))
+        }
+
         return yield* lastAssistant(sessionID)
       },
     )
@@ -1658,6 +1722,11 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    AlignmentGuard.node,
+    Goal.node,
+    ModeRegistry.node,
+    AutoDream.node,
+    SessionCheckpoint.node,
   ],
 })
 

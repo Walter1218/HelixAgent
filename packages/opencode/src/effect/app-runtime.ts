@@ -51,6 +51,24 @@ import { memoMap } from "@opencode-ai/core/effect/memo-map"
 import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { Trace } from "@/trace/trace"
+import { Metrics } from "@/metrics/metrics"
+import { TokenTracker } from "@/token/tracker"
+import { Cardinal } from "@/session/cardinal"
+import { AlignmentGuard } from "@/observability/alignment-guard"
+import { Goal } from "@/session/goal"
+import { ActorRegistry } from "@/actor/registry"
+import { TaskRegistry } from "@/task/registry"
+import { ModeRegistry } from "@/session/mode-registry"
+import { ActorSpawn } from "@/actor/spawn"
+import { ActorWaiter } from "@/actor/waiter"
+import { AutoDream } from "@/session/auto-dream"
+import { SessionCheckpoint } from "@/session/checkpoint"
+import { Evolution } from "@/evolution/evolution"
+import { Scheduler } from "@/scheduler/scheduler"
+import { Team } from "@/team/team"
+import { AST } from "@/ast/ast"
+import { Workflow } from "@/workflow/workflow"
 
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
@@ -99,13 +117,31 @@ export const AppLayer = Layer.mergeAll(
   Installation.defaultLayer,
   ShareNext.defaultLayer,
   SessionShare.defaultLayer,
+  Trace.defaultLayer,
+  Metrics.defaultLayer,
+  TokenTracker.defaultLayer,
+  Cardinal.defaultLayer,
+  AlignmentGuard.defaultLayer,
+  Goal.defaultLayer,
+  ActorRegistry.defaultLayer,
+  TaskRegistry.defaultLayer,
+  ModeRegistry.defaultLayer,
+  ActorSpawn.defaultLayer,
+  ActorWaiter.defaultLayer,
+  AutoDream.defaultLayer,
+  SessionCheckpoint.defaultLayer,
+  Evolution.defaultLayer,
+  Scheduler.defaultLayer,
+  Team.defaultLayer,
+  AST.defaultLayer,
+  Workflow.defaultLayer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
   Layer.provideMerge(Observability.layer),
 )
 
-const rt = ManagedRuntime.make(AppLayer, { memoMap })
+const rt = ManagedRuntime.make(AppLayer as any, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
 
 /** Services provided by AppRuntime — i.e. what an Effect run via AppRuntime.runPromise can yield. */

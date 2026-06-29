@@ -1,3 +1,4 @@
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Context, Effect, Layer, Ref } from "effect"
 import { Actor, ActorStatus, ActorOutcome } from "./schema"
 
@@ -65,3 +66,7 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
+export * as ActorRegistry from "./registry"

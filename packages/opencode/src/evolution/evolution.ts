@@ -69,4 +69,30 @@ export function exportToJsonl(pairs: DPOPair[]): string {
   return pairs.map(pair => JSON.stringify(pair)).join("\n")
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly matchPairs: (traces: TraceEvent[]) => Effect.Effect<DPOPair[]>
+  readonly filterDirty: (traces: TraceEvent[]) => Effect.Effect<TraceEvent[]>
+  readonly exportToJsonl: (pairs: DPOPair[]) => Effect.Effect<string>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Evolution") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      matchPairs: (traces) => Effect.succeed(matchPairs(traces)),
+      filterDirty: (traces) => Effect.succeed(filterDirtyTraces(traces)),
+      exportToJsonl: (pairs) => Effect.succeed(exportToJsonl(pairs)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Evolution from "./evolution"

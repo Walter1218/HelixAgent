@@ -174,4 +174,28 @@ export function evaluateCardinal(context: ExecutionContext, rules: CardinalRule[
   return highestDecision
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly evaluate: (context: ExecutionContext) => Effect.Effect<CardinalDecision | null>
+  readonly getRules: () => Effect.Effect<CardinalRule[]>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Cardinal") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const evaluate = Effect.fn("Cardinal.evaluate")(function* (context: ExecutionContext) {
+      return evaluateCardinal(context)
+    })
+    return Service.of({ evaluate, getRules: () => Effect.succeed(DEFAULT_RULES) })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Cardinal from "./cardinal"

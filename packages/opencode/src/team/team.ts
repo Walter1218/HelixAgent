@@ -50,4 +50,34 @@ export function formatTeam(team: Team): string {
   return lines.join("\n")
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly createTeam: (name: string) => Effect.Effect<Team>
+  readonly addMember: (team: Team, member: TeamMember) => Effect.Effect<Team>
+  readonly removeMember: (team: Team, sessionID: string) => Effect.Effect<Team>
+  readonly getMember: (team: Team, sessionID: string) => Effect.Effect<TeamMember | undefined>
+  readonly formatTeam: (team: Team) => Effect.Effect<string>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Team") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      createTeam: (name) => Effect.succeed({ id: createTeamId(), name, members: [], createdAt: Date.now() }),
+      addMember: (team, member) => Effect.succeed(addMember(team, member)),
+      removeMember: (team, sessionID) => Effect.succeed(removeMember(team, sessionID)),
+      getMember: (team, sessionID) => Effect.succeed(getMember(team, sessionID)),
+      formatTeam: (team) => Effect.succeed(formatTeam(team)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Team from "./team"

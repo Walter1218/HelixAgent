@@ -53,4 +53,41 @@ export function formatLatency(ms: number): string {
   return `${ms}ms`
 }
 
+import { Effect, Ref, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly recordModelCall: (metric: ModelCallMetric) => Effect.Effect<void>
+  readonly recordToolCall: (metric: ToolCallMetric) => Effect.Effect<void>
+  readonly recordAgentRequest: (metric: AgentRequestMetric) => Effect.Effect<void>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Metrics") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const modelCalls = yield* Ref.make<ModelCallMetric[]>([])
+    const toolCalls = yield* Ref.make<ToolCallMetric[]>([])
+
+    const recordModelCall = Effect.fn("Metrics.recordModelCall")(function* (metric: ModelCallMetric) {
+      yield* Ref.update(modelCalls, (arr) => [...arr.slice(-9999), metric])
+    })
+
+    const recordToolCall = Effect.fn("Metrics.recordToolCall")(function* (metric: ToolCallMetric) {
+      yield* Ref.update(toolCalls, (arr) => [...arr.slice(-9999), metric])
+    })
+
+    const recordAgentRequest = Effect.fn("Metrics.recordAgentRequest")(function* (_metric: AgentRequestMetric) {
+      // 暂存，后续可持久化
+    })
+
+    return Service.of({ recordModelCall, recordToolCall, recordAgentRequest })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Metrics from "./metrics"

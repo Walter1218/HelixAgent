@@ -1,3 +1,4 @@
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Context, Effect, Layer, Deferred } from "effect"
 
 export interface WaitResult {
@@ -47,3 +48,7 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
+export * as ActorWaiter from "./waiter"

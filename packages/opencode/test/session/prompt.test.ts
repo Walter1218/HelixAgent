@@ -53,6 +53,11 @@ import { Format } from "../../src/format"
 import { TestInstance } from "../fixture/fixture"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
+import { AlignmentGuard } from "@/observability/alignment-guard"
+import { Goal } from "@/session/goal"
+import { ModeRegistry } from "@/session/mode-registry"
+import { AutoDream } from "@/session/auto-dream"
+import { SessionCheckpoint } from "@/session/checkpoint"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
@@ -187,6 +192,11 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
     status,
     Database.defaultLayer,
     EventV2Bridge.defaultLayer,
+    AlignmentGuard.defaultLayer,
+    Goal.defaultLayer,
+    ModeRegistry.defaultLayer,
+    AutoDream.defaultLayer,
+    SessionCheckpoint.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
   const question = Question.layer.pipe(Layer.provideMerge(deps))
   const todo = Todo.layer.pipe(Layer.provideMerge(deps))

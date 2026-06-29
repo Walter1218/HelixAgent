@@ -1,3 +1,4 @@
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Context, Effect, Layer } from "effect"
 import { Actor, SpawnMode, ContextMode, Lifecycle, ToolWhitelist } from "./schema"
 
@@ -64,3 +65,7 @@ export const layer = Layer.effect(
 )
 
 export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
+export * as ActorSpawn from "./spawn"

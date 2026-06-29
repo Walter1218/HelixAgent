@@ -68,4 +68,30 @@ export function detectFileDrift(goal: string, files: Set<string>): string[] {
   return drifts
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly detectRabbitHole: (commands: string[]) => Effect.Effect<boolean>
+  readonly detectDistraction: (command: string) => Effect.Effect<boolean>
+  readonly detectFileDrift: (goal: string, files: Set<string>) => Effect.Effect<string[]>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/AlignmentGuard") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      detectRabbitHole: (cmds) => Effect.succeed(detectRabbitHole(cmds)),
+      detectDistraction: (cmd) => Effect.succeed(detectDistraction(cmd)),
+      detectFileDrift: (goal, files) => Effect.succeed(detectFileDrift(goal, files)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as AlignmentGuard from "./alignment-guard"

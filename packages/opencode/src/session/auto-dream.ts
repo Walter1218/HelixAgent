@@ -1,3 +1,6 @@
+import { Effect, Ref, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
 export const AUTO_DREAM_TITLE = "Auto Dream"
 export const AUTO_DISTILL_TITLE = "Auto Distill"
 
@@ -19,12 +22,43 @@ export const DISTILL_TASK = [
   "Produce a compact shortlist, then create only the high-confidence missing assets.",
 ].join("\n")
 
-export function shouldAutoDream(intervalDays: number = 7): boolean {
-  return true
+export interface Interface {
+  readonly shouldAutoDream: (intervalDays?: number) => Effect.Effect<boolean>
+  readonly shouldAutoDistill: (intervalDays?: number) => Effect.Effect<boolean>
 }
 
-export function shouldAutoDistill(intervalDays: number = 30): boolean {
-  return true
-}
+export class Service extends Context.Service<Service, Interface>()("@opencode/AutoDream") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const lastDreamTime = yield* Ref.make(0)
+    const lastDistillTime = yield* Ref.make(0)
+
+    const shouldAutoDream = Effect.fn("AutoDream.shouldAutoDream")(function* (intervalDays = 7) {
+      const now = Date.now()
+      const last = yield* Ref.get(lastDreamTime)
+      const intervalMs = intervalDays * 24 * 60 * 60 * 1000
+      if (now - last < intervalMs) return false
+      yield* Ref.set(lastDreamTime, now)
+      return true
+    })
+
+    const shouldAutoDistill = Effect.fn("AutoDream.shouldAutoDistill")(function* (intervalDays = 30) {
+      const now = Date.now()
+      const last = yield* Ref.get(lastDistillTime)
+      const intervalMs = intervalDays * 24 * 60 * 60 * 1000
+      if (now - last < intervalMs) return false
+      yield* Ref.set(lastDistillTime, now)
+      return true
+    })
+
+    return Service.of({ shouldAutoDream, shouldAutoDistill })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
 
 export * as AutoDream from "./auto-dream"

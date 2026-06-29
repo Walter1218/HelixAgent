@@ -1,22 +1,31 @@
-export const HistoryTool = {
-  id: "history",
-  description: "Search historical sessions and conversations.",
-  parameters: {
-    operation: {
-      type: "string",
-      enum: ["search", "around"],
-      description: "History operation to perform",
-    },
-    query: { type: "string", description: "FTS query (required for search)" },
-    scope: { type: "string", enum: ["project", "global"], description: "Search scope" },
-    session_id: { type: "string", description: "Filter by session ID" },
-    kind: { type: "array", items: { type: "string" }, description: "Filter by message kind" },
-    tool_name: { type: "string", description: "Filter by tool name" },
-    time_after: { type: "number", description: "Unix ms timestamp filter" },
-    time_before: { type: "number", description: "Unix ms timestamp filter" },
-    limit: { type: "number", description: "Max results (default 10, max 50)" },
-    message_id: { type: "string", description: "Anchor message ID (required for around)" },
-    before: { type: "number", description: "Messages before anchor (default 5)" },
-    after: { type: "number", description: "Messages after anchor (default 5)" },
-  },
-}
+import * as Tool from "./tool"
+import { Schema, Effect } from "effect"
+
+export const Parameters = Schema.Struct({
+  operation: Schema.Literals(["search", "around"]),
+  query: Schema.optional(Schema.String),
+  scope: Schema.optional(Schema.Literals(["project", "global"])),
+  session_id: Schema.optional(Schema.String),
+  kind: Schema.optional(Schema.Array(Schema.String)),
+  tool_name: Schema.optional(Schema.String),
+  time_after: Schema.optional(Schema.Number),
+  time_before: Schema.optional(Schema.Number),
+  limit: Schema.optional(Schema.Number),
+  message_id: Schema.optional(Schema.String),
+  before: Schema.optional(Schema.Number),
+  after: Schema.optional(Schema.Number),
+})
+
+export const HistoryTool = Tool.define(
+  "history",
+  Effect.gen(function* () {
+    return {
+      description: "Search historical sessions and conversations.",
+      parameters: Parameters,
+      execute: (_params, _ctx) =>
+        Effect.gen(function* () {
+          return { title: "not implemented", output: "History search is not yet implemented", metadata: {} }
+        }),
+    }
+  }),
+)

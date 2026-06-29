@@ -100,4 +100,30 @@ export function formatBlastRadius(radius: BlastRadius): string {
   return lines.join("\n")
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly calculateBlastRadius: (file: string, dependencies: Map<string, string[]>) => Effect.Effect<BlastRadius>
+  readonly extractContract: (content: string) => Effect.Effect<Contract>
+  readonly formatBlastRadius: (radius: BlastRadius) => Effect.Effect<string>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/AST") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      calculateBlastRadius: (file, deps) => Effect.succeed(calculateBlastRadius(file, deps)),
+      extractContract: (content) => Effect.succeed(extractContract(content)),
+      formatBlastRadius: (radius) => Effect.succeed(formatBlastRadius(radius)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as AST from "./ast"

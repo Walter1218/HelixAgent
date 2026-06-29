@@ -25,6 +25,10 @@ import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@opencode-ai/core/database/database"
 import { Usage, type LLMEvent } from "@opencode-ai/llm"
+import { Trace } from "@/trace/trace"
+import { Metrics } from "@/metrics/metrics"
+import { TokenTracker } from "@/token/tracker"
+import { Cardinal } from "@/session/cardinal"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -94,6 +98,10 @@ export const layer = Layer.effect(
     const image = yield* Image.Service
     const events = yield* EventV2Bridge.Service
     const database = yield* Database.Service
+    const trace = yield* Trace.Service
+    const metrics = yield* Metrics.Service
+    const tokenTracker = yield* TokenTracker.Service
+    const cardinal = yield* Cardinal.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
       // Pre-capture snapshot before the LLM stream starts. The AI SDK
@@ -348,6 +356,37 @@ export const layer = Layer.effect(
                 : value.providerMetadata,
             }))
 
+            yield* trace.emit({
+              id: `tool-${value.id}`,
+              parentId: `session-${ctx.sessionID}`,
+              type: "action",
+              name: `tool.${value.name}`,
+              status: "pending",
+              metadata: { sessionID: ctx.sessionID, toolName: value.name, input },
+            })
+
+            const cardinalDecision = yield* cardinal.evaluate({
+              taskId: ctx.sessionID,
+              taskTitle: ctx.assistantMessage.agent,
+              tokensUsed: ctx.assistantMessage.tokens?.input ?? 0,
+              totalBudget: 1_000_000,
+            })
+            if (cardinalDecision?.level === "block") {
+              yield* failToolCall(value.id, new Error(`Cardinal blocked: ${cardinalDecision.reason}`))
+              return
+            }
+            if (cardinalDecision?.level === "pause") {
+              const agentInfo = yield* agents.get(ctx.assistantMessage.agent)
+              yield* permission.ask({
+                permission: "cardinal",
+                patterns: [cardinalDecision.reason],
+                sessionID: ctx.sessionID,
+                metadata: { decision: cardinalDecision },
+                always: ["*"],
+                ruleset: agentInfo.permission,
+              })
+            }
+
             const parts = yield* MessageV2.parts(ctx.assistantMessage.id).pipe(
               Effect.provideService(Database.Service, database),
             )
@@ -408,11 +447,41 @@ export const layer = Layer.effect(
               attachments: attachments.length ? attachments : undefined,
             }
             yield* completeToolCall(value.id, output)
+            yield* trace.emit({
+              id: `tool-${value.id}`,
+              type: "action",
+              name: `tool.${value.name ?? "unknown"}`,
+              status: "success",
+              metadata: { sessionID: ctx.sessionID },
+            })
+            yield* metrics.recordToolCall({
+              sessionID: ctx.sessionID,
+              tool_name: value.name ?? "unknown",
+              input_bytes: JSON.stringify(output.output).length,
+              output_bytes: output.output.length,
+              tool_call_id: value.id,
+              tool_call_status: "success",
+            })
             return
           }
 
           case "tool-error": {
             yield* failToolCall(value.id, value.error ?? new Error(value.message))
+            yield* trace.emit({
+              id: `tool-${value.id}`,
+              type: "action",
+              name: `tool.${value.name ?? "unknown"}`,
+              status: "failed",
+              metadata: { sessionID: ctx.sessionID, error: value.error ?? value.message },
+            })
+            yield* metrics.recordToolCall({
+              sessionID: ctx.sessionID,
+              tool_name: value.name ?? "unknown",
+              input_bytes: 0,
+              output_bytes: 0,
+              tool_call_id: value.id,
+              tool_call_status: "error",
+            })
             return
           }
 
@@ -452,6 +521,23 @@ export const layer = Layer.effect(
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
+            yield* metrics.recordModelCall({
+              sessionID: ctx.sessionID,
+              finish_reason: value.reason ?? "unknown",
+              latency_ms: Date.now() - (ctx.assistantMessage.time.created ?? Date.now()),
+              cached_read_tokens: usage.tokens.cache.read,
+              model_id: ctx.model.id,
+              provider: ctx.model.providerID,
+              total_tokens_in: usage.tokens.input,
+              total_tokens_out: usage.tokens.output,
+            })
+            yield* tokenTracker.recordUsage({
+              session_id: ctx.sessionID,
+              model_id: ctx.model.id,
+              provider_id: ctx.model.providerID,
+              input_tokens: usage.tokens.input,
+              output_tokens: usage.tokens.output,
+            })
             if (ctx.snapshot) {
               const patch = yield* snapshot.patch(ctx.snapshot)
               if (patch.files.length) {
@@ -727,6 +813,10 @@ export const node = LayerNode.make({
     Image.node,
     EventV2Bridge.node,
     Database.node,
+    Trace.node,
+    Metrics.node,
+    TokenTracker.node,
+    Cardinal.node,
   ],
 })
 

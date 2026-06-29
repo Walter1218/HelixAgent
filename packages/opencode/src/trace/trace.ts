@@ -92,4 +92,32 @@ export function getDuration(events: TraceEvent[]): number {
   return Math.max(...ends) - Math.min(...starts)
 }
 
+import { Effect, Ref, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly emit: (event: Omit<TraceEvent, "timestamp">) => Effect.Effect<void>
+  readonly getTraces: (sessionID: string) => Effect.Effect<TraceEvent[]>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Trace") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const events = yield* Ref.make<TraceEvent[]>([])
+    const emit = Effect.fn("Trace.emit")(function* (event: Omit<TraceEvent, "timestamp">) {
+      yield* Ref.update(events, (arr) => [...arr.slice(-9999), { ...event, timestamp: Date.now() }])
+    })
+    const getTraces = Effect.fn("Trace.getTraces")(function* (sessionID: string) {
+      return (yield* Ref.get(events)).filter((e) => e.metadata?.sessionID === sessionID)
+    })
+    return Service.of({ emit, getTraces })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Trace from "./trace"

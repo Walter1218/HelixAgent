@@ -70,4 +70,28 @@ export function formatBudget(tokens: number): string {
   return tokens.toString()
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly selectTasks: (tasks: Task[], config: ScheduleConfig) => Effect.Effect<ScheduleResult>
+  readonly formatBudget: (tokens: number) => Effect.Effect<string>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Scheduler") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      selectTasks: (tasks, config) => Effect.succeed(selectTasks(tasks, config)),
+      formatBudget: (tokens) => Effect.succeed(formatBudget(tokens)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Scheduler from "./scheduler"

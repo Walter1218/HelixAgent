@@ -58,4 +58,56 @@ export function formatTokens(tokens: number): string {
   return tokens.toString()
 }
 
+import { Effect, Ref, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly recordUsage: (usage: TokenUsage) => Effect.Effect<void>
+  readonly getDailyBudget: () => Effect.Effect<DailyBudget>
+  readonly canAfford: (tokens: number) => Effect.Effect<boolean>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/TokenTracker") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const usage = yield* Ref.make<TokenUsage[]>([])
+
+    const recordUsage = Effect.fn("TokenTracker.recordUsage")(function* (u: TokenUsage) {
+      yield* Ref.update(usage, (arr) => [...arr.slice(-9999), { ...u, timestamp: Date.now() }])
+    })
+
+    const getDailyBudget = Effect.fn("TokenTracker.getDailyBudget")(function* () {
+      const all = yield* Ref.get(usage)
+      const today = new Date().toISOString().slice(0, 10)
+      const todayUsage = all.filter((u) => u.timestamp && new Date(u.timestamp).toISOString().slice(0, 10) === today)
+      const used = todayUsage.reduce((sum, u) => sum + u.input_tokens + u.output_tokens, 0)
+      return {
+        date: today,
+        total_budget: DEFAULT_TOKEN_CONFIG.daily_limit,
+        used,
+        remaining: DEFAULT_TOKEN_CONFIG.daily_limit - used,
+        planning_used: 0,
+        execution_used: 0,
+        review_used: 0,
+        testing_used: 0,
+        compaction_used: 0,
+        allocated: {},
+      }
+    })
+
+    const canAfford = Effect.fn("TokenTracker.canAfford")(function* (tokens: number) {
+      const budget = yield* getDailyBudget()
+      return budget.remaining >= tokens
+    })
+
+    return Service.of({ recordUsage, getDailyBudget, canAfford })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as TokenTracker from "./tracker"

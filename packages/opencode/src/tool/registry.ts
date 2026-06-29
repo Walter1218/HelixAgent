@@ -52,6 +52,16 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { ActorTool } from "./actor"
+import { HistoryTool } from "./history"
+import { MemoryTool } from "./memory"
+import { WorkflowTool } from "./workflow"
+import { ScreenshotTool } from "./screenshot"
+import { MultiEditTool } from "./multiedit"
+import { ActorRegistry } from "@/actor/registry"
+import { TaskRegistry } from "@/task/registry"
+import { ActorSpawn } from "@/actor/spawn"
+import { ActorWaiter } from "@/actor/waiter"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.opencode || flags.exa || flags.parallel
@@ -106,6 +116,12 @@ export const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const agent = yield* Agent.Service
+    const actor = yield* ActorTool
+    const history = yield* HistoryTool
+    const memory = yield* MemoryTool
+    const workflow = yield* WorkflowTool
+    const screenshot = yield* ScreenshotTool
+    const multiedit = yield* MultiEditTool
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("ToolRegistry.state")(function* (ctx) {
@@ -212,6 +228,12 @@ export const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          actor: Tool.init(actor),
+          history: Tool.init(history),
+          memory: Tool.init(memory),
+          workflow: Tool.init(workflow),
+          screenshot: Tool.init(screenshot),
+          multiedit: Tool.init(multiedit),
         })
 
         return {
@@ -233,6 +255,12 @@ export const layer = Layer.effect(
             tool.patch,
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
+            ...(flags.experimentalActorTool ? [tool.actor] : []),
+            ...(flags.experimentalHistoryTool ? [tool.history] : []),
+            ...(flags.experimentalMemoryTool ? [tool.memory] : []),
+            ...(flags.experimentalWorkflowTool ? [tool.workflow] : []),
+            tool.screenshot,
+            tool.multiedit,
           ],
           task: tool.task,
           read: tool.read,
@@ -336,7 +364,14 @@ export const defaultLayer = Layer.suspend(() =>
       Layer.provide(CrossSpawnSpawner.defaultLayer),
       Layer.provide(Truncate.defaultLayer),
     )
-    .pipe(Layer.provide(Database.defaultLayer), Layer.provide(RuntimeFlags.defaultLayer)),
+    .pipe(
+      Layer.provideMerge(ActorRegistry.defaultLayer),
+      Layer.provideMerge(TaskRegistry.defaultLayer),
+      Layer.provideMerge(ActorSpawn.defaultLayer),
+      Layer.provideMerge(ActorWaiter.defaultLayer),
+      Layer.provide(Database.defaultLayer),
+      Layer.provide(RuntimeFlags.defaultLayer),
+    ),
 )
 
 function isZodType(value: unknown): value is z.ZodType {
@@ -438,6 +473,10 @@ export const node = LayerNode.make({
     Truncate.node,
     RuntimeFlags.node,
     Database.node,
+    ActorRegistry.node,
+    TaskRegistry.node,
+    ActorSpawn.node,
+    ActorWaiter.node,
   ],
 })
 

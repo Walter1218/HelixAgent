@@ -44,4 +44,30 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(ms / 3600000)}h ${Math.round((ms % 3600000) / 60000)}m`
 }
 
+import { Effect, Context, Layer } from "effect"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+
+export interface Interface {
+  readonly createRunId: () => Effect.Effect<string>
+  readonly isTerminalStatus: (status: WorkflowStatus) => Effect.Effect<boolean>
+  readonly formatDuration: (ms: number) => Effect.Effect<string>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/Workflow") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    return Service.of({
+      createRunId: () => Effect.succeed(createRunId()),
+      isTerminalStatus: (status) => Effect.succeed(isTerminalStatus(status)),
+      formatDuration: (ms) => Effect.succeed(formatDuration(ms)),
+    })
+  })
+)
+
+export const defaultLayer = layer
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+
 export * as Workflow from "./workflow"

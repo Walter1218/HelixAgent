@@ -1,12 +1,25 @@
-export const MemoryTool = {
-  id: "memory",
-  description: "Search persistent memory across sessions, projects, and global knowledge.",
-  parameters: {
-    operation: { type: "string", enum: ["search"], default: "search" },
-    query: { type: "string", description: "Search query" },
-    scope: { type: "string", enum: ["global", "projects", "sessions"], optional: true },
-    scope_id: { type: "string", optional: true },
-    type: { type: "string", optional: true },
-    limit: { type: "number", optional: true },
-  },
-}
+import * as Tool from "./tool"
+import { Schema, Effect } from "effect"
+
+export const Parameters = Schema.Struct({
+  operation: Schema.optional(Schema.Literals(["search"])),
+  query: Schema.String,
+  scope: Schema.optional(Schema.Literals(["global", "projects", "sessions"])),
+  scope_id: Schema.optional(Schema.String),
+  type: Schema.optional(Schema.String),
+  limit: Schema.optional(Schema.Number),
+})
+
+export const MemoryTool = Tool.define(
+  "memory",
+  Effect.gen(function* () {
+    return {
+      description: "Search persistent memory across sessions, projects, and global knowledge.",
+      parameters: Parameters,
+      execute: (_params, _ctx) =>
+        Effect.gen(function* () {
+          return { title: "not implemented", output: "Memory search is not yet implemented", metadata: {} }
+        }),
+    }
+  }),
+)
