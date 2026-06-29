@@ -1,6 +1,6 @@
 # HelixAgent
 
-> **基于 OpenCode 架构，融合 MiMo Code 能力的下一代 AI 编程智能体**
+> **基于 OpenCode 架构，融合 MiMo Code 能力，并在此基础上进行创新的下一代 AI 编程智能体**
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -11,22 +11,15 @@
 
 ## 项目简介
 
-HelixAgent 是在 [OpenCode](https://github.com/anomalyco/opencode) 基础上，融合 [MiMo Code](https://github.com/sinco-lab/mimocode) 核心能力的创新项目。我们保留了 OpenCode 的 V1+V2 双系统架构，同时引入了 MiMo Code 的记忆系统、智能体协作、安全沙箱等高级特性，构建了一个更强大的 AI 编程智能体平台。
+HelixAgent 是在 [OpenCode](https://github.com/anomalyco/opencode) 基础上，融合 [MiMo Code](https://github.com/XiaomiMiMo/MiMo-Code) 核心能力，并在此基础上进行创新的项目。
 
-### 核心创新
+### 能力来源
 
-| 能力 | 来源 | 说明 |
+| 来源 | 能力 | 说明 |
 |------|------|------|
-| **Memory Layer** | MiMo Code | FTS5 + Vector RAG 混合检索，本地 LM Studio 支持 |
-| **Actor并发系统** | MiMo Code | 子智能体管理，Effect Fiber 并发，生命周期控制 |
-| **Task系统** | MiMo Code | 任务状态机，TaskGate 检查，事件审计 |
-| **Goal系统** | MiMo Code | 独立 Judge 评估，目标驱动执行 |
-| **模式系统** | OpenCode + MiMo Code | Build/Plan/Compose/Max/Loop 6种模式 |
-| **Judge系统** | MiMo Code | 8项启发式检查 + LLM 裁判 |
-| **Cardinal系统** | MiMo Code | 4级风险控制 (block/pause/stop/warn) |
-| **AlignmentGuard** | MiMo Code | 文件漂移/兔子洞/分心检测 |
-| **Trace机制** | MiMo Code | TraceReporter + HeuristicFilter + Debug日志 |
-| **TUI外化** | 创新 | 完整的终端UI组件库，18个组件 |
+| **OpenCode** | 基础架构 | V1+V2双系统架构、TUI、LSP、MCP、插件系统 |
+| **MiMo Code** | 核心能力 | 持久记忆、智能上下文管理、子智能体编排、目标驱动、Compose模式、Dream/Distill、Voice输入、Max模式 |
+| **HelixAgent创新** | 高级能力 | Cardinal风险控制、AlignmentGuard偏移检测、Trace机制、Token预算、Metrics、Workflow引擎、Team协作、AST Graph、Shell Safety、TUI外化 |
 
 ---
 
@@ -55,16 +48,15 @@ HelixAgent 是在 [OpenCode](https://github.com/anomalyco/opencode) 基础上，
 
 ```bash
 # 使用安装脚本
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://mimo.xiaomi.com/install | bash
 
-# 或使用包管理器
-npm i -g opencode-ai@latest
-brew install anomalyco/tap/opencode
+# 或使用npm
+npm install -g @mimo-ai/cli
 ```
 
 ### 配置
 
-创建 `~/.config/opencode/config.json`:
+创建 `~/.config/mimocode/mimocode.json`:
 
 ```json
 {
@@ -95,122 +87,84 @@ brew install anomalyco/tap/opencode
 
 ```bash
 # 交互模式
-opencode
+mimo
 
 # 单次运行
-opencode run "实现用户登录功能"
+mimo run "实现用户登录功能"
 
 # 服务模式
-opencode serve --port 3096
+mimo serve --port 3096
 ```
 
 ---
 
-## 核心能力详解
+## 来自 MiMo Code 的核心能力
 
-### 1. Memory Layer (记忆层)
+### 1. 多智能体系统
 
-基于 MiMo Code 的记忆系统，支持 FTS5 + Vector RAG 混合检索：
+| 智能体 | 说明 |
+|--------|------|
+| **build** | 默认模式，完整工具权限 |
+| **plan** | 只读分析模式，用于代码探索和方案设计 |
+| **compose** | 编排模式，用于规格驱动开发和技能驱动工作流 |
 
-```typescript
-// 自动记忆整合
-- 每7天触发 Dream Agent 整合记忆
-- 每30天触发 Distill Agent 提取工作流
-- Semantic Hash 检测规则漂移
-```
+按 `Tab` 在主智能体之间切换。子智能体由系统按需创建。
 
-**特性**:
-- FTS5 全文搜索 (BM25 排序)
-- 向量语义搜索 (本地 LM Studio 支持)
-- 混合检索: `BM25 × 0.6 + Vector × 0.4`，共存 boost 1.3x
-- 自动记忆衰减和清理
+### 2. 持久记忆系统
 
-### 2. Actor并发系统 (子智能体管理)
+跨会话记忆，基于SQLite FTS5全文搜索：
 
-基于 MiMo Code 的 Actor 模型，支持并发子智能体管理：
+- **项目记忆** (`MEMORY.md`) - 持久化项目知识、规则、架构决策
+- **会话检查点** (`checkpoint.md`) - 由checkpoint-writer子智能体自动维护的结构化状态快照
+- **临时笔记** (`notes.md`) - 智能体的临时笔记区域
+- **任务进度** (`tasks/<id>/progress.md`) - 每个任务的日志
 
-```typescript
-// 创建子智能体
-const actor = await spawn({
-  mode: "subagent",
-  agentType: "explore",
-  task: "Explore codebase structure",
-  background: true,
-})
+会话恢复时自动注入记忆，智能体无需重新学习项目上下文。
 
-// 等待完成
-const result = await wait({ actorID: actor.id })
-```
+### 3. 智能上下文管理
 
-**特性**:
-- Effect Fiber 并发模型
-- ForkContext 前缀缓存共享
-- 并发上限: 16个软上限，1000个硬上限
-- 生命周期管理: ephemeral / persistent
+- **自动检查点** - 根据模型上下文窗口决定何时保存会话状态
+- **上下文重建** - 当上下文接近限制时，从最新检查点、项目记忆、任务进度和保留的最近消息重建
+- **预算注入** - 使用token预算控制有多少检查点、记忆和笔记内容进入上下文
 
-### 3. Task系统 (任务管理)
+### 4. 任务追踪
 
-基于 MiMo Code 的任务状态机：
+树形任务系统 (`T1`, `T1.1`, `T1.2`, ...)，自动与检查点系统集成，任务进度在会话恢复时保留。
 
-```
-open → in_progress → done/blocked/abandoned
-```
+### 5. 子智能体系统
 
-**特性**:
-- 分层ID生成: T1, T1.1, T1.1.1
-- 任务事件审计
-- 自动归档 (默认7天)
-- TaskGate 检查未完成任务
+主智能体可以按需创建子智能体。子智能体共享当前会话上下文，可以并行工作，支持生命周期跟踪、取消和后台执行。
 
-### 4. Goal系统 (目标驱动)
+### 6. 目标/停止条件
 
-基于 MiMo Code 的独立 Judge 评估：
+`/goal` 命令设置会话的停止条件。当智能体尝试停止时，独立的judge模型评估对话以决定条件是否真正满足——防止自主工作期间的过早"乐观停止"。
 
-```typescript
-// 设置目标
-await goal.set(sessionID, "Create a login feature with JWT")
+### 7. Compose模式
 
-// Judge自动评估
-// ok: true → 停止
-// ok: false → 继续
-// impossible: true → 清除目标
-```
+为规格驱动开发提供结构化工作流。包含内置技能用于规划、执行、代码审查、TDD、调试、验证和合并——编排从规格到交付代码的完整生命周期。
 
-**特性**:
-- 独立 Judge 模型 (temperature=0)
-- 完整上下文评估
-- 安全阀: MAX_GOAL_REACT = 12
+### 8. Dream & Distill
 
-### 5. 模式系统 (6种模式)
+- **`/dream`** - 扫描最近的会话轨迹，提取持久知识到项目记忆，并删除过时条目
+- **`/distill`** - 发现最近工作中的重复手动工作流，并将高置信度候选打包成可重用的技能、子智能体或命令
 
-融合 OpenCode 和 MiMo Code 的模式系统：
+### 9. Max模式
 
-| 模式 | 说明 | 快捷键 |
-|------|------|--------|
-| **Ask** | 只读模式，用于提问和解释 | Tab |
-| **Build** | 默认模式，执行工具 | Tab |
-| **Plan** | 规划模式，禁止编辑工具 | Tab |
-| **Compose** | 组合模式，使用compose技能 | Tab |
-| **Max** | 实验性模式，并行运行N个候选 | Tab |
-| **Loop** | 循环模式，自动反馈 | Tab |
+并行最佳N推理，通过judge选择。可通过配置中的 `experimental.maxMode` 启用。
 
-### 6. Judge系统 (代码审查)
+### 10. Voice输入
 
-基于 MiMo Code 的启发式检查 + LLM 裁判：
+实时流式语音输入，由TenVAD和MiMo ASR驱动。通过 `/voice` 激活，然后说话——音频按停顿分段并增量转录到输入中。
 
-**8项检查**:
-1. 断言减少检测
-2. 结构性变更检测
-3. 琐碎化检测
-4. 安全检测
-5. 回归风险检测
-6. 一致性检测
-7. 规格对齐检测
-8. 声明门控检测
+---
 
-### 7. Cardinal系统 (风险控制)
+## HelixAgent 的创新能力
 
-基于 MiMo Code 的4级风险控制：
+### 1. Cardinal风险控制系统
+
+**来源**: HelixAgent创新
+
+4级风险控制，防止高风险操作：
 
 | 级别 | 说明 | 处理方式 |
 |------|------|----------|
@@ -219,43 +173,104 @@ await goal.set(sessionID, "Create a login feature with JWT")
 | **Stop** | 轻微风险 | 停止记录日志 |
 | **Warn** | 潜在风险 | 警告继续执行 |
 
-### 8. Trace机制 (执行追踪)
+### 2. AlignmentGuard偏移检测
 
-基于 MiMo Code 的执行追踪系统：
+**来源**: HelixAgent创新
 
-```typescript
-// TraceReporter - 追踪事件记录
-// HeuristicFilter - 脏数据过滤
-// formatTree - 树状可视化
-```
+实时检测智能体是否偏离目标：
+- **文件漂移检测** - 修改大量与目标无关的文件
+- **兔子洞检测** - 连续执行安装命令
+- **分心检测** - curl/wget/open等与任务无关操作
 
-**特性**:
-- 类型安全的事件定义
-- 采样支持
-- 最大trace数量限制
-- Debug日志系统 (30+模块debug点)
+### 3. Trace机制
 
----
+**来源**: HelixAgent创新
 
-## TUI组件库
+完整的执行追踪系统：
+- **TraceReporter** - 追踪事件记录
+- **HeuristicFilter** - 脏数据过滤
+- **formatTree** - 树状可视化
+- **Debug日志系统** - 30+模块debug点
+
+### 4. Token预算管理
+
+**来源**: HelixAgent创新
+
+Token使用追踪和预算管理：
+- 每日token预算限制
+- 按任务分配token预算
+- Token使用统计
+
+### 5. Metrics系统
+
+**来源**: HelixAgent创新
+
+性能指标收集：
+- ModelCall指标 (TTFT、延迟、缓存命中)
+- ToolCall指标 (输入/输出字节)
+- AgentRequest指标
+
+### 6. Workflow引擎
+
+**来源**: HelixAgent创新
+
+JavaScript/JSON工作流脚本执行：
+- 内置工作流 (deep-research)
+- VFS沙箱
+- 并发信号量
+
+### 7. Team系统
+
+**来源**: HelixAgent创新
+
+团队协作能力：
+- 团队创建和管理
+- 成员角色分配
+
+### 8. AST Graph
+
+**来源**: HelixAgent创新
+
+代码依赖分析：
+- Blast Radius计算
+- Contract提取
+
+### 9. Shell Safety
+
+**来源**: HelixAgent创新
+
+AST级命令解析和危险操作拦截：
+- Shell Tokenizer
+- 高风险命令拦截
+- 动态命令检测
+
+### 10. TUI外化
+
+**来源**: HelixAgent创新
 
 完整的终端UI组件库，18个组件：
 
-| 类型 | 组件 | 说明 |
-|------|------|------|
-| **指示器** | ModeIndicator | 显示当前模式 |
-| **指示器** | GoalIndicator | 显示当前目标 |
-| **指示器** | TokenIndicator | 显示Token使用量 |
-| **面板** | TaskPanel | 显示任务列表 |
-| **面板** | ActorPanel | 显示子智能体列表 |
-| **面板** | TracePanel | 显示执行追踪 |
-| **面板** | SkillPanel | 显示技能列表 |
-| **面板** | AgentPanel | 显示Agent列表 |
-| **告警** | CardinalAlert | Cardinal风险告警 |
-| **告警** | AlignmentAlert | 偏移检测告警 |
-| **对话框** | DialogMode | Mode切换 |
-| **对话框** | DialogMemory | 记忆搜索 |
-| **对话框** | DialogHistory | 历史搜索 |
+| 类型 | 组件 |
+|------|------|
+| **指示器** | ModeIndicator, GoalIndicator, TokenIndicator |
+| **面板** | TaskPanel, ActorPanel, TracePanel, SkillPanel, AgentPanel |
+| **告警** | CardinalAlert, AlignmentAlert |
+| **对话框** | DialogMode, DialogMemory, DialogHistory |
+
+---
+
+## 模式系统
+
+融合OpenCode和MiMo Code的模式系统：
+
+| 模式 | 来源 | 说明 | 快捷键 |
+|------|------|------|--------|
+| **Ask** | OpenCode | 只读模式，用于提问和解释 | Tab |
+| **Build** | OpenCode | 默认模式，执行工具 | Tab |
+| **Plan** | OpenCode | 规划模式，禁止编辑工具 | Tab |
+| **Compose** | MiMo Code | 组合模式，使用compose技能 | Tab |
+| **Max** | MiMo Code | 实验性模式，并行运行N个候选 | Tab |
+| **Loop** | HelixAgent | 循环模式，自动反馈 | Tab |
 
 ---
 
@@ -294,17 +309,21 @@ HelixAgent/
 ├── packages/
 │   ├── core/                    # 核心库
 │   │   └── src/
-│   │       ├── memory/          # Memory Layer
+│   │       ├── memory/          # Memory Layer (来自MiMo Code)
 │   │       ├── config/          # 配置系统
 │   │       └── ...
 │   └── opencode/                # 主应用
 │       └── src/
-│           ├── actor/           # Actor并发系统
-│           ├── task/            # Task系统
-│           ├── session/         # Session/Goal/Mode
+│           ├── actor/           # Actor并发系统 (来自MiMo Code)
+│           ├── task/            # Task系统 (来自MiMo Code)
+│           ├── session/         # Session/Goal/Mode (来自MiMo Code)
 │           ├── agent/           # Agent配置
 │           ├── tool/            # 工具系统
-│           ├── cli/cmd/tui/     # TUI组件
+│           ├── observability/   # AlignmentGuard/Trace (HelixAgent创新)
+│           ├── evolution/       # Evolution Flywheel (HelixAgent创新)
+│           ├── scheduler/       # Auto-Dev Scheduler (HelixAgent创新)
+│           ├── team/            # Team系统 (HelixAgent创新)
+│           ├── cli/cmd/tui/     # TUI组件 (HelixAgent创新)
 │           └── ...
 ├── TUI_EXTERNALIZATION_PLAN.md  # TUI外化计划
 └── TRANSFORM_PLAN.md            # 迁移计划
@@ -344,12 +363,12 @@ Copyright (c) 2026 HelixAgent
 
 本项目基于以下开源项目：
 - [OpenCode](https://github.com/anomalyco/opencode) - MIT License
-- [MiMo Code](https://github.com/sinco-lab/mimocode) - MIT License
+- [MiMo Code](https://github.com/XiaomiMiMo/MiMo-Code) - MIT License
 
 ---
 
 ## 致谢
 
 - [OpenCode](https://github.com/anomalyco/opencode) - 基础架构
-- [MiMo Code](https://github.com/sinco-lab/mimocode) - 核心能力
+- [MiMo Code](https://github.com/XiaomiMiMo/MiMo-Code) - 核心能力
 - [MiMo Token Plan](https://token-plan-cn.xiaomimimo.com) - API支持
