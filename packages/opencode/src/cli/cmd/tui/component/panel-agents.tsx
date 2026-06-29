@@ -11,12 +11,12 @@ export function AgentPanel(props: { agents?: Agent[]; current?: string }) {
   
   return (
     <box flexDirection="column" gap={0}>
-      <text style={{ bold: true }}>Agents</text>
+      <text>Agents</text>
       <For each={agents()}>
         {(agent) => (
           <box flexDirection="row" gap={1}>
-            <text style={{ color: agent.name === current() ? "#4ade80" : "#888" }}>●</text>
-            <text style={{ color: agent.name === current() ? "#fff" : "#888" }}>{agent.name}</text>
+            <text>{agent.name === current() ? "●" : "○"}</text>
+            <text>{agent.name}</text>
           </box>
         )}
       </For>

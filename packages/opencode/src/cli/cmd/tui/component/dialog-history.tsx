@@ -37,8 +37,8 @@ export function DialogHistory(props: {
   return (
     <box flexDirection="column" gap={1} padding={2}>
       <box flexDirection="row" justifyContent="space-between">
-        <text style={{ bold: true }}>History Search</text>
-        <text style={{ color: "#888" }} onClick={props.onClose}>esc</text>
+        <text>History Search</text>
+        <text onClick={props.onClose}>esc</text>
       </box>
       
       <input 
@@ -49,20 +49,18 @@ export function DialogHistory(props: {
       />
       
       <Show when={loading()}>
-        <text style={{ color: "#888" }}>Searching...</text>
+        <text>Searching...</text>
       </Show>
       
       <Show when={!loading() && results().length === 0 && query().trim()}>
-        <text style={{ color: "#888" }}>No results found</text>
+        <text>No results found</text>
       </Show>
       
       <For each={results()}>
         {(result) => (
           <box flexDirection="column" gap={0} padding={1}>
-            <text>
-              {result.sessionID} - {formatDate(result.time)} ({result.kind})
-            </text>
-            <text style={{ color: "#888" }}>{result.snippet}</text>
+            <text>{result.sessionID} - {formatDate(result.time)} ({result.kind})</text>
+            <text>{result.snippet}</text>
           </box>
         )}
       </For>

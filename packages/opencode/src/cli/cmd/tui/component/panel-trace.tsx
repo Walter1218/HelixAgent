@@ -31,11 +31,11 @@ export function TracePanel(props: { traces?: TraceEvent[] }) {
   return (
     <Show when={traces().length > 0}>
       <box flexDirection="column" gap={0}>
-        <text style={{ bold: true }}>Execution Trace</text>
+        <text>Execution Trace</text>
         <For each={tree()}>
           {(node) => <TraceNodeComponent node={node} level={0} />}
         </For>
-        <text style={{ color: "#888" }}>
+        <text>
           Total: {formatDuration(totalDuration())} | {traces().length} events | ✓{successCount()} ✗{failedCount()}
         </text>
       </box>
@@ -49,7 +49,7 @@ function TraceNodeComponent(props: { node: TraceNode; level: number }) {
   
   return (
     <box flexDirection="column">
-      <text style={{ color: props.node.status === "failed" ? "#ef4444" : "#fff" }}>
+      <text>
         {indent}{icon} {props.node.name} ({formatDuration(props.node.duration ?? 0)})
       </text>
       <For each={props.node.children}>

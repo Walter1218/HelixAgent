@@ -18,23 +18,14 @@ export function TaskPanel(props: { tasks?: Task[] }) {
     }
   }
   
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "done": return "#4ade80"
-      case "in_progress": return "#fbbf24"
-      case "blocked": return "#ef4444"
-      default: return "#888"
-    }
-  }
-  
   return (
     <Show when={tasks().length > 0}>
       <box flexDirection="column" gap={0}>
-        <text style={{ bold: true }}>Tasks</text>
+        <text>Tasks</text>
         <For each={tasks()}>
           {(task) => (
             <box flexDirection="row" gap={1}>
-              <text style={{ color: statusColor(task.status) }}>{statusIcon(task.status)}</text>
+              <text>{statusIcon(task.status)}</text>
               <text>{task.id} {task.title}</text>
             </box>
           )}
