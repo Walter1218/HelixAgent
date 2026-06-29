@@ -11,7 +11,6 @@ interface HistoryResult {
 
 export function DialogHistory(props: {
   onSearch: (query: string) => Promise<HistoryResult[]>
-  onClose: () => void
 }) {
   const [query, setQuery] = createSignal("")
   const [results, setResults] = createSignal<HistoryResult[]>([])
@@ -36,14 +35,11 @@ export function DialogHistory(props: {
   
   return (
     <box flexDirection="column" gap={1} padding={2}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text>History Search</text>
-        <box onClick={props.onClose}><text>esc</text></box>
-      </box>
+      <text>History Search</text>
       
       <input 
         value={query()} 
-        onInput={(e) => setQuery(typeof e === 'string' ? e : e.target?.value ?? '')} 
+        onInput={(e) => setQuery(typeof e === 'string' ? e : '')} 
         onSubmit={search}
         placeholder="Search history..."
       />

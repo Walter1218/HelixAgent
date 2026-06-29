@@ -4,8 +4,6 @@ interface CardinalAlertProps {
   level: "block" | "pause" | "stop" | "warn"
   reason: string
   suggestion?: string
-  onStop: () => void
-  onIgnore: () => void
 }
 
 export function CardinalAlert(props: CardinalAlertProps) {
@@ -23,10 +21,6 @@ export function CardinalAlert(props: CardinalAlertProps) {
       <Show when={props.suggestion}>
         <text>Suggestion: {props.suggestion}</text>
       </Show>
-      <box flexDirection="row" gap={2}>
-        <box onClick={props.onStop}><text>[Stop]</text></box>
-        <box onClick={props.onIgnore}><text>[Ignore]</text></box>
-      </box>
     </box>
   )
 }

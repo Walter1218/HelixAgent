@@ -8,7 +8,6 @@ interface MemoryResult {
 
 export function DialogMemory(props: {
   onSearch: (query: string) => Promise<MemoryResult[]>
-  onClose: () => void
 }) {
   const [query, setQuery] = createSignal("")
   const [results, setResults] = createSignal<MemoryResult[]>([])
@@ -29,14 +28,11 @@ export function DialogMemory(props: {
   
   return (
     <box flexDirection="column" gap={1} padding={2}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text>Memory Search</text>
-        <box onClick={props.onClose}><text>esc</text></box>
-      </box>
+      <text>Memory Search</text>
       
       <input 
         value={query()} 
-        onInput={(e) => setQuery(typeof e === 'string' ? e : e.target?.value ?? '')} 
+        onInput={(e) => setQuery(typeof e === 'string' ? e : '')} 
         onSubmit={search}
         placeholder="Search memory..."
       />

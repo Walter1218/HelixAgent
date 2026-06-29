@@ -8,7 +8,6 @@ interface ModeOption {
 
 export function DialogMode(props: { 
   current?: string
-  onSelect: (mode: string) => void 
 }) {
   const modes: ModeOption[] = [
     { value: "ask", title: "Ask", description: "Read-only, questions only" },
@@ -26,7 +25,6 @@ export function DialogMode(props: {
         <box 
           flexDirection="row" 
           gap={1}
-          onClick={() => props.onSelect(mode.value)}
         >
           <text>{mode.value === props.current ? "●" : "○"}</text>
           <text>{mode.title}</text>
