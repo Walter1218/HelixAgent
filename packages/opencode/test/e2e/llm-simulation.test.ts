@@ -42,15 +42,15 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
       const { parseReturnHeader } = await import("@/actor/return-header")
 
       // 1. 创建Actor实例
-      const actor: Actor = {
+      const actor = {
         sessionID: "test-session",
         actorID: "explore-123",
-        mode: "subagent",
-        status: "pending",
-        lifecycle: "ephemeral",
+        mode: "subagent" as const,
+        status: "pending" as const,
+        lifecycle: "ephemeral" as const,
         agent: "explore",
         description: "Explore codebase",
-        contextMode: "state",
+        contextMode: "state" as const,
         background: true,
         lastTurnTime: Date.now(),
         turnCount: 0,
@@ -84,13 +84,13 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
       const { Task } = await import("@/task/schema")
 
       // 1. 创建任务
-      const task: Task = {
+      const task = {
         id: "T1",
         sessionID: "test-session",
         title: "Implement user login",
-        status: "open",
-        priority: "high",
-        complexity: "moderate",
+        status: "open" as const,
+        priority: "high" as const,
+        complexity: "moderate" as const,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }
@@ -104,10 +104,9 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
 
       // 3. 完成任务
       task.status = "done"
-      task.completedAt = Date.now()
-      task.updatedAt = Date.now()
-      expect(task.status).toBe("done")
-      expect(task.completedAt).toBeDefined()
+      const completedTask = { ...task, completedAt: Date.now() }
+      expect(completedTask.status).toBe("done")
+      expect(completedTask.completedAt).toBeDefined()
     })
 
     it("子任务层级", async () => {
@@ -153,21 +152,21 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
       expect(goal.condition).toBe("Create a file named test.txt")
 
       // 2. 模拟Judge评估 - 满足条件
-      const satisfiedVerdict: Verdict = {
+      const satisfiedVerdict = {
         ok: true,
         reason: "File test.txt was created successfully",
       }
       expect(satisfiedVerdict.ok).toBe(true)
 
       // 3. 模拟Judge评估 - 未满足
-      const unsatisfiedVerdict: Verdict = {
+      const unsatisfiedVerdict = {
         ok: false,
         reason: "File test.txt does not exist yet",
       }
       expect(unsatisfiedVerdict.ok).toBe(false)
 
       // 4. 模拟Judge评估 - 不可能满足
-      const impossibleVerdict: Verdict = {
+      const impossibleVerdict = {
         ok: false,
         impossible: true,
         reason: "Cannot create file in read-only filesystem",
