@@ -3,7 +3,7 @@ import { describe, it, expect } from "bun:test"
 describe("Phase 3c: Shadow Worktree", () => {
   describe("Worktree核心功能", () => {
     it("should export worktree types", async () => {
-      const { createWorktree, removeWorktree, resetWorktree, commitChanges, cleanWorktree, listWorktrees, isWorktreeLocked, generateSlug } = await import("@/worktree/worktree")
+      const { createWorktree, removeWorktree, resetWorktree, commitChanges, cleanWorktree, listWorktrees, isWorktreeLocked, generateSlug } = await import("@/shadow-worktree/worktree")
       expect(typeof createWorktree).toBe("function")
       expect(typeof removeWorktree).toBe("function")
       expect(typeof resetWorktree).toBe("function")
@@ -15,13 +15,13 @@ describe("Phase 3c: Shadow Worktree", () => {
     })
 
     it("should generate slug", async () => {
-      const { generateSlug } = await import("@/worktree/worktree")
+      const { generateSlug } = await import("@/shadow-worktree/worktree")
       const slug = generateSlug()
       expect(slug).toMatch(/^[a-z]+-[a-z]+-[a-z0-9]+$/)
     })
 
     it("should list worktrees", async () => {
-      const { listWorktrees } = await import("@/worktree/worktree")
+      const { listWorktrees } = await import("@/shadow-worktree/worktree")
       const worktrees = await listWorktrees("/Users/onetwo/Documents/trae_projects/HelixAgent")
       expect(Array.isArray(worktrees)).toBe(true)
     })
@@ -29,7 +29,7 @@ describe("Phase 3c: Shadow Worktree", () => {
 
   describe("Worktree GC功能", () => {
     it("should export gc types", async () => {
-      const { garbageCollect } = await import("@/worktree/gc")
+      const { garbageCollect } = await import("@/shadow-worktree/gc")
       expect(typeof garbageCollect).toBe("function")
     })
   })
