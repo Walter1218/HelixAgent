@@ -62,6 +62,10 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { LocationServiceMap, locationServiceMapLayer } from "@opencode-ai/core/location-services"
+import { Trace } from "../../src/trace/trace"
+import { Metrics } from "../../src/metrics/metrics"
+import { TokenTracker } from "../../src/token/tracker"
+import { Cardinal } from "../../src/session/cardinal"
 
 const summary = Layer.succeed(
   SessionSummary.Service,
@@ -197,6 +201,10 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
     ModeRegistry.defaultLayer,
     AutoDream.defaultLayer,
     SessionCheckpoint.defaultLayer,
+    Trace.defaultLayer,
+    Metrics.defaultLayer,
+    TokenTracker.defaultLayer,
+    Cardinal.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
   const question = Question.layer.pipe(Layer.provideMerge(deps))
   const todo = Todo.layer.pipe(Layer.provideMerge(deps))
@@ -251,16 +259,16 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
 }
 
 function makeHttp(input?: { mcpInstructions?: MCP.ServerInstructions[]; processor?: "blocking" }) {
-  return Layer.mergeAll(TestLLMServer.layer, makePrompt(input))
+  return Layer.mergeAll(TestLLMServer.layer, makePrompt(input)) as any
 }
 
 function makeHttpNoLLMServer(input?: { mcpInstructions?: MCP.ServerInstructions[]; processor?: "blocking" }) {
-  return makePrompt(input)
+  return makePrompt(input) as any
 }
 
 const it = testEffect(makeHttp())
 const noLLMServer = testEffect(makeHttpNoLLMServer())
-const raceNoLLMServer = testEffect(makeHttpNoLLMServer({ processor: "blocking" }))
+const raceNoLLMServer = testEffect(makeHttpNoLLMServer({ processor: "blocking" }) as any)
 const withMcpInstructions = testEffect(
   makeHttp({
     mcpInstructions: [
@@ -270,7 +278,7 @@ const withMcpInstructions = testEffect(
         tools: ["guide-server_lookup"],
       },
     ],
-  }),
+  }) as any,
 )
 const unix = process.platform !== "win32" ? it.instance : it.instance.skip
 const unixNoLLMServer = process.platform !== "win32" ? noLLMServer.instance : noLLMServer.instance.skip

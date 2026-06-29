@@ -27,6 +27,16 @@ import { testEffect } from "../lib/effect"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
 import { NpmTest } from "../fake/npm"
+import { Trace } from "../../src/trace/trace"
+import { Metrics } from "../../src/metrics/metrics"
+import { TokenTracker } from "../../src/token/tracker"
+import { Cardinal } from "../../src/session/cardinal"
+import { AlignmentGuard } from "../../src/observability/alignment-guard"
+import { Goal } from "../../src/session/goal"
+import { ModeRegistry } from "../../src/session/mode-registry"
+import { AutoDream } from "../../src/session/auto-dream"
+import { SessionCheckpoint } from "../../src/session/checkpoint"
+import { SessionStatus } from "../../src/session/status"
 
 const configLayer = Config.layer.pipe(
   Layer.provide(EffectFlock.defaultLayer),
@@ -57,7 +67,18 @@ const workspaceLayer = Workspace.layer.pipe(
   Layer.provide(RuntimeFlags.layer({ experimentalWorkspaces: true })),
 )
 const it = testEffect(
-  Layer.mergeAll(pluginLayer, workspaceLayer, CrossSpawnSpawner.defaultLayer).pipe(Layer.provide(Ripgrep.defaultLayer)),
+  Layer.mergeAll(pluginLayer, workspaceLayer, CrossSpawnSpawner.defaultLayer).pipe(
+    Layer.provide(Ripgrep.defaultLayer),
+    Layer.provide(Trace.defaultLayer),
+    Layer.provide(Metrics.defaultLayer),
+    Layer.provide(TokenTracker.defaultLayer),
+    Layer.provide(Cardinal.defaultLayer),
+    Layer.provide(AlignmentGuard.defaultLayer),
+    Layer.provide(Goal.defaultLayer),
+    Layer.provide(ModeRegistry.defaultLayer),
+    Layer.provide(AutoDream.defaultLayer),
+    Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+  ) as any,
 )
 
 afterEach(async () => {

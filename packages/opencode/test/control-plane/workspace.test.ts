@@ -34,6 +34,16 @@ import { Vcs } from "@/project/vcs"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
+import { Trace } from "../../src/trace/trace"
+import { Metrics } from "../../src/metrics/metrics"
+import { TokenTracker } from "../../src/token/tracker"
+import { Cardinal } from "../../src/session/cardinal"
+import { AlignmentGuard } from "../../src/observability/alignment-guard"
+import { Goal } from "../../src/session/goal"
+import { ModeRegistry } from "../../src/session/mode-registry"
+import { AutoDream } from "../../src/session/auto-dream"
+import { SessionCheckpoint } from "../../src/session/checkpoint"
+import { SessionStatus } from "../../src/session/status"
 
 const originalEnv = {
   OPENCODE_AUTH_CONTENT: process.env.OPENCODE_AUTH_CONTENT,
@@ -44,20 +54,30 @@ const originalEnv = {
 }
 
 const workspaceLayer = (experimentalWorkspaces: boolean) =>
-  Workspace.layer.pipe(
-    Layer.provide(Auth.defaultLayer),
-    Layer.provide(SessionNs.defaultLayer),
-    Layer.provide(SessionPrompt.defaultLayer),
-    Layer.provide(Project.defaultLayer),
-    Layer.provide(Vcs.defaultLayer),
-    Layer.provide(Database.defaultLayer),
-    Layer.provide(EventV2Bridge.defaultLayer),
-    Layer.provide(FetchHttpClient.layer),
-    Layer.provide(FSUtil.defaultLayer),
-    Layer.provide(RuntimeFlags.layer({ experimentalWorkspaces })),
-    Layer.provide(Ripgrep.defaultLayer),
-    Layer.provide(InstanceStore.defaultLayer.pipe(Layer.provide(InstanceBootstrap.defaultLayer))),
-  )
+  (
+    Workspace.layer.pipe(
+      Layer.provide(Auth.defaultLayer),
+      Layer.provide(SessionNs.defaultLayer),
+      Layer.provide(SessionPrompt.defaultLayer),
+      Layer.provide(Project.defaultLayer),
+      Layer.provide(Vcs.defaultLayer),
+      Layer.provide(Database.defaultLayer),
+      Layer.provide(EventV2Bridge.defaultLayer),
+      Layer.provide(FetchHttpClient.layer),
+      Layer.provide(FSUtil.defaultLayer),
+      Layer.provide(RuntimeFlags.layer({ experimentalWorkspaces })),
+      Layer.provide(Ripgrep.defaultLayer),
+      Layer.provide(InstanceStore.defaultLayer.pipe(Layer.provide(InstanceBootstrap.defaultLayer))),
+      Layer.provide(Trace.defaultLayer),
+      Layer.provide(Metrics.defaultLayer),
+      Layer.provide(TokenTracker.defaultLayer),
+      Layer.provide(Cardinal.defaultLayer),
+      Layer.provideMerge(Layer.mergeAll(AlignmentGuard.defaultLayer, Goal.defaultLayer)),
+      Layer.provide(ModeRegistry.defaultLayer),
+      Layer.provide(AutoDream.defaultLayer),
+      Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+    ) as any
+  ) as Layer.Layer<Workspace.Service, never, never>
 
 const testServerLayer = Layer.mergeAll(
   NodeHttpServer.layer(Http.createServer, { host: "127.0.0.1", port: 0 }),

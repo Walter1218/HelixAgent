@@ -21,6 +21,7 @@ import { Effect } from "effect"
 import { OpenApi } from "effect/unstable/httpapi"
 import { TestLLMServer } from "../../lib/llm-server"
 import path from "path"
+import { AppLayer } from "../../../src/effect/app-runtime"
 import { array, boolean, check, isRecord, message, object, stable } from "./assertions"
 import { controlledPtyInput, http, route } from "./dsl"
 import {
@@ -1805,7 +1806,7 @@ const main = Effect.gen(function* () {
   return undefined
 })
 
-Effect.runPromise(main.pipe(Effect.provide(TestLLMServer.layer), Effect.scoped)).then(
+Effect.runPromise(main.pipe(Effect.provide(TestLLMServer.layer), Effect.provide(AppLayer as any), Effect.scoped) as any).then(
   () => process.exit(0),
   (error: unknown) => {
     console.error(`${color.red}${message(error)}${color.reset}`)

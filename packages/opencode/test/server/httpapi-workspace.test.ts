@@ -21,6 +21,16 @@ import { Project } from "../../src/project/project"
 import { InstancePaths } from "../../src/server/routes/instance/httpapi/groups/instance"
 import { testEffect } from "../lib/effect"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
+import { Trace } from "../../src/trace/trace"
+import { Metrics } from "../../src/metrics/metrics"
+import { TokenTracker } from "../../src/token/tracker"
+import { Cardinal } from "../../src/session/cardinal"
+import { AlignmentGuard } from "../../src/observability/alignment-guard"
+import { Goal } from "../../src/session/goal"
+import { ModeRegistry } from "../../src/session/mode-registry"
+import { AutoDream } from "../../src/session/auto-dream"
+import { SessionCheckpoint } from "../../src/session/checkpoint"
+import { SessionStatus } from "../../src/session/status"
 
 const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES
 const workspaceLayer = Workspace.defaultLayer.pipe(
@@ -35,7 +45,18 @@ const it = testEffect(
     InstanceStore.defaultLayer.pipe(Layer.provide(InstanceBootstrap.defaultLayer)),
     Database.defaultLayer,
     httpApiLayer,
-  ).pipe(Layer.provide(Ripgrep.defaultLayer)),
+    Trace.defaultLayer,
+    Metrics.defaultLayer,
+    TokenTracker.defaultLayer,
+    Cardinal.defaultLayer,
+    AlignmentGuard.defaultLayer,
+    Goal.defaultLayer,
+    ModeRegistry.defaultLayer,
+    AutoDream.defaultLayer,
+  ).pipe(
+    Layer.provide(Ripgrep.defaultLayer),
+    Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+  ) as any,
 )
 
 function request(path: string, directory: string, init: RequestInit = {}) {

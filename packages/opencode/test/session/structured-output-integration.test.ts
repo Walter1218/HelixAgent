@@ -6,11 +6,32 @@ import { Session } from "@/session/session"
 import { SessionPrompt } from "../../src/session/prompt"
 import { MessageV2 } from "../../src/session/message-v2"
 import { testEffect } from "../lib/effect"
+import { Trace } from "../../src/trace/trace"
+import { Metrics } from "../../src/metrics/metrics"
+import { TokenTracker } from "../../src/token/tracker"
+import { Cardinal } from "../../src/session/cardinal"
+import { AlignmentGuard } from "../../src/observability/alignment-guard"
+import { Goal } from "../../src/session/goal"
+import { ModeRegistry } from "../../src/session/mode-registry"
+import { AutoDream } from "../../src/session/auto-dream"
+import { SessionCheckpoint } from "../../src/session/checkpoint"
+import { SessionStatus } from "../../src/session/status"
 
 // Skip tests if no API key is available
 const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 const it = testEffect(
-  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(Layer.provide(Ripgrep.defaultLayer)),
+  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(
+    Layer.provide(Ripgrep.defaultLayer),
+    Layer.provide(Trace.defaultLayer),
+    Layer.provide(Metrics.defaultLayer),
+    Layer.provide(TokenTracker.defaultLayer),
+    Layer.provide(Cardinal.defaultLayer),
+    Layer.provide(AlignmentGuard.defaultLayer),
+    Layer.provide(Goal.defaultLayer),
+    Layer.provide(ModeRegistry.defaultLayer),
+    Layer.provide(AutoDream.defaultLayer),
+    Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+  ) as any,
 )
 const live = hasApiKey ? it.instance : it.instance.skip
 
