@@ -90,31 +90,32 @@ npm install -g @mimo-ai/cli
 ```json
 {
   "provider": {
-    "kimi": {
-      "name": "Kimi for Coding",
+    "kimi-for-coding": {
+      "name": "Kimi For Coding",
       "npm": "@ai-sdk/openai-compatible",
-      "env": ["MOONSHOT_API_KEY"],
+      "api": "https://api.kimi.com/coding/v1",
+      "env": ["KIMI_API_KEY"],
       "options": {
-        "apiKey": "${MOONSHOT_API_KEY}",
-        "baseURL": "https://api.moonshot.cn/v1"
+        "apiKey": "${KIMI_API_KEY}",
+        "baseURL": "https://api.kimi.com/coding/v1"
       },
       "models": {
-        "kimi-k2.7-code": {
+        "k2p7": {
           "name": "Kimi K2.7 Code",
           "tool_call": true,
           "reasoning": true,
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": { "context": 262144, "output": 262144 }
         },
-        "kimi-k2.6": {
-          "name": "Kimi K2.6",
+        "k2p5": {
+          "name": "Kimi K2.5",
           "tool_call": true,
           "reasoning": true,
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": { "context": 262144, "output": 262144 }
         }
       }
     }
   },
-  "model": "kimi/kimi-k2.7-code"
+  "model": "kimi-for-coding/k2p7"
 }
 ```
 

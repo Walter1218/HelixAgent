@@ -1,53 +1,43 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "kimi": {
-      "name": "Kimi for Coding",
+    "kimi-for-coding": {
+      "name": "Kimi For Coding",
       "npm": "@ai-sdk/openai-compatible",
-      "env": ["MOONSHOT_API_KEY"],
+      "api": "https://api.kimi.com/coding/v1",
+      "env": ["KIMI_API_KEY"],
       "options": {
-        "apiKey": "${MOONSHOT_API_KEY}",
-        "baseURL": "https://api.moonshot.cn/v1"
+        "apiKey": "${KIMI_API_KEY}",
+        "baseURL": "https://api.kimi.com/coding/v1"
       },
       "models": {
-        "kimi-k2.7-code": {
+        "k2p7": {
           "name": "Kimi K2.7 Code",
           "tool_call": true,
           "reasoning": true,
           "temperature": true,
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": { "context": 262144, "output": 262144 }
         },
-        "kimi-k2.6": {
-          "name": "Kimi K2.6",
-          "tool_call": true,
-          "reasoning": true,
-          "temperature": true,
-          "limit": { "context": 131072, "output": 8192 }
-        },
-        "kimi-k2.5": {
+        "k2p5": {
           "name": "Kimi K2.5",
           "tool_call": true,
           "reasoning": true,
           "temperature": true,
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": { "context": 262144, "output": 262144 }
         },
-        "moonshot-v1-128k": {
-          "name": "Moonshot V1 128K",
+        "k2p6": {
+          "name": "Kimi K2.6",
           "tool_call": true,
+          "reasoning": true,
           "temperature": true,
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": { "context": 262144, "output": 262144 }
         },
-        "moonshot-v1-32k": {
-          "name": "Moonshot V1 32K",
+        "kimi-k2-thinking": {
+          "name": "Kimi K2 Thinking",
           "tool_call": true,
+          "reasoning": true,
           "temperature": true,
-          "limit": { "context": 32768, "output": 8192 }
-        },
-        "moonshot-v1-8k": {
-          "name": "Moonshot V1 8K",
-          "tool_call": true,
-          "temperature": true,
-          "limit": { "context": 8192, "output": 4096 }
+          "limit": { "context": 262144, "output": 262144 }
         }
       }
     }
