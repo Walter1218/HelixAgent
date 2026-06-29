@@ -1,5 +1,6 @@
 export { 
   type TeamMember, 
+  type Team, 
   createTeamId, 
   addMember, 
   removeMember, 
@@ -7,7 +8,3 @@ export {
   getMembersByRole, 
   formatTeam 
 } from "./team"
-
-export type { Team, TeamMember } from "./team"
-
-export * as Team from "./team"
