@@ -138,6 +138,30 @@ export const layer = Layer.effect(
         const user = Permission.fromConfig(cfg.permission ?? {})
 
         const agents: Record<string, Info> = {
+          ask: {
+            name: "ask",
+            description: "Ask questions, get explanations without code changes.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                question: "allow",
+                read: "allow",
+                grep: "allow",
+                glob: "allow",
+                list: "allow",
+                bash: "allow",
+                webfetch: "allow",
+                websearch: "allow",
+                codesearch: "allow",
+                memory: "allow",
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
           build: {
             name: "build",
             description: "The default agent. Executes tools based on configured permissions.",
@@ -173,6 +197,36 @@ export const layer = Layer.effect(
                   [path.join(".opencode", "plans", "*.md")]: "allow",
                   [path.relative(ctx.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
                 },
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
+          compose: {
+            name: "compose",
+            description: "Compose mode. Orchestrates workflows with built-in compose skills.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                skill: "allow",
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
+          loop: {
+            name: "loop",
+            description: "Iterative execution with automatic feedback.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                plan_enter: "allow",
               }),
               user,
             ),
@@ -261,6 +315,58 @@ export const layer = Layer.effect(
               user,
             ),
             prompt: PROMPT_SUMMARY,
+          },
+          dream: {
+            name: "dream",
+            mode: "subagent",
+            native: true,
+            hidden: true,
+            prompt: "You are the Dream agent. Consolidate memory from recent sessions into MEMORY.md.",
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                read: "allow",
+                write: "allow",
+                edit: "allow",
+                glob: "allow",
+                grep: "allow",
+                memory: "allow",
+                bash: "allow",
+                external_directory: {
+                  [path.join(Global.Path.data, "memory")]: "allow",
+                  [path.join(Global.Path.data, "memory", "*")]: "allow",
+                },
+              }),
+              user,
+            ),
+            options: {},
+          },
+          distill: {
+            name: "distill",
+            mode: "subagent",
+            native: true,
+            hidden: true,
+            prompt: "You are the Distill agent. Extract repeated workflows into skills.",
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                read: "allow",
+                write: "allow",
+                edit: "allow",
+                glob: "allow",
+                grep: "allow",
+                memory: "allow",
+                bash: "allow",
+                external_directory: {
+                  [path.join(Global.Path.data, "memory")]: "allow",
+                  [path.join(Global.Path.data, "memory", "*")]: "allow",
+                },
+              }),
+              user,
+            ),
+            options: {},
           },
         }
 
