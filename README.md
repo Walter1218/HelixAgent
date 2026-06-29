@@ -340,6 +340,12 @@ HelixAgent/
 
 MIT License
 
+Copyright (c) 2026 HelixAgent
+
+本项目基于以下开源项目：
+- [OpenCode](https://github.com/anomalyco/opencode) - MIT License
+- [MiMo Code](https://github.com/sinco-lab/mimocode) - MIT License
+
 ---
 
 ## 致谢
