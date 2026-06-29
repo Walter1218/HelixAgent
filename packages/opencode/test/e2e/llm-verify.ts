@@ -2,7 +2,7 @@
 // LLM端到端验证脚本 - 注意请求频率
 
 const SERVER = "http://127.0.0.1:4096"
-const DELAY = 2000 // 2秒间隔，避免频率限制
+const DELAY = 5000 // 5秒间隔，避免频率限制
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -17,13 +17,23 @@ async function createSession(title: string) {
   return res.json()
 }
 
-async function sendMessage(sessionId: string, text: string) {
-  const res = await fetch(`${SERVER}/session/${sessionId}/message`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ parts: [{ type: "text", text }] })
-  })
-  return res.json()
+async function sendMessage(sessionId: string, text: string, timeoutMs = 60000) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  
+  try {
+    const res = await fetch(`${SERVER}/session/${sessionId}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parts: [{ type: "text", text }] }),
+      signal: controller.signal
+    })
+    clearTimeout(timeout)
+    return res.json()
+  } catch (error) {
+    clearTimeout(timeout)
+    throw error
+  }
 }
 
 function extractText(response: any): string {
