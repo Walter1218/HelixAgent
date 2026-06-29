@@ -69,6 +69,8 @@ import { Scheduler } from "@/scheduler/scheduler"
 import { Team } from "@/team/team"
 import { AST } from "@/ast/ast"
 import { Workflow } from "@/workflow/workflow"
+import { OpenSpec } from "@/openspec"
+import { OpenSpecJudge } from "@/openspec/judge"
 
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
@@ -135,6 +137,8 @@ export const AppLayer = Layer.mergeAll(
   Team.defaultLayer,
   AST.defaultLayer,
   Workflow.defaultLayer,
+  OpenSpec.defaultLayer,
+  OpenSpecJudge.defaultLayer,
 ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),

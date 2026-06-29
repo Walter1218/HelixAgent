@@ -184,6 +184,16 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  openspec: Schema.optional(
+    Schema.Struct({
+      directory: Schema.optional(Schema.String).annotate({
+        description: "Directory containing OpenSpec markdown files (default: openspec/specs)",
+      }),
+      auto_verify_on_commit: Schema.optional(Schema.Boolean).annotate({
+        description: "Automatically run spec verification before git commit",
+      }),
+    }),
+  ).annotate({ description: "OpenSpec configuration for structured requirements and verification" }),
 }).annotate({ identifier: "Config" })
 
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>

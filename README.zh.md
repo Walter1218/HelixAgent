@@ -19,7 +19,7 @@ HelixAgent 是在 [OpenCode](https://github.com/anomalyco/opencode) 基础上，
 |------|------|------|
 | **OpenCode** | 基础架构 | V1+V2双系统架构、TUI、LSP、MCP、插件系统 |
 | **MiMo Code** | 核心能力 | 持久记忆、智能上下文管理、子智能体编排、目标驱动、Compose模式、Dream/Distill、Voice输入、Max模式 |
-| **HelixAgent创新** | 高级能力 | Cardinal风险控制、AlignmentGuard偏移检测、Trace机制、Token预算、Metrics、Workflow引擎、Team协作、AST Graph、Shell Safety、TUI外化 |
+| **HelixAgent创新** | 高级能力 | Cardinal风险控制、AlignmentGuard偏移检测、Trace机制、Token预算、Metrics、Workflow引擎、Team协作、AST Graph、Shell Safety、TUI外化、OpenSpec |
 
 ---
 
@@ -303,6 +303,31 @@ AST级命令解析和危险操作拦截：
 | **告警** | CardinalAlert, AlignmentAlert |
 | **对话框** | DialogMode, DialogMemory, DialogHistory |
 
+### 11. OpenSpec系统
+
+**来源**: HelixAgent创新
+
+结构化需求和验证系统：
+
+- **Spec解析** - 基于Markdown的需求规格，包含验证命令
+- **合规性Judge** - 自动验证实现是否符合规格
+- **CLI命令** - `opencode spec list/show/verify`
+- **Spec Writer** - 从任务描述自动生成规格
+- **Spec Converter** - 在Markdown规格和代码结构之间转换
+
+#### 使用方法
+
+```bash
+# 列出所有规格
+opencode spec list
+
+# 显示规格详情
+opencode spec show --name cardinal-integration
+
+# 验证实现
+opencode spec verify --all
+```
+
 ---
 
 ## 模式系统
@@ -365,12 +390,15 @@ HelixAgent/
 │           ├── session/         # Session/Goal/Mode (来自MiMo Code)
 │           ├── agent/           # Agent配置
 │           ├── tool/            # 工具系统
+│           ├── openspec/        # OpenSpec系统 (HelixAgent创新)
 │           ├── observability/   # AlignmentGuard/Trace (HelixAgent创新)
 │           ├── evolution/       # Evolution Flywheel (HelixAgent创新)
 │           ├── scheduler/       # Auto-Dev Scheduler (HelixAgent创新)
 │           ├── team/            # Team系统 (HelixAgent创新)
 │           ├── cli/cmd/tui/     # TUI组件 (HelixAgent创新)
 │           └── ...
+├── openspec/                    # 规格文件
+│   └── specs/
 ├── TUI_EXTERNALIZATION_PLAN.md  # TUI外化计划
 └── TRANSFORM_PLAN.md            # 迁移计划
 ```
