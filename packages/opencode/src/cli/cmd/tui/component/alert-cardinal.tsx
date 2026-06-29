@@ -24,8 +24,8 @@ export function CardinalAlert(props: CardinalAlertProps) {
         <text>Suggestion: {props.suggestion}</text>
       </Show>
       <box flexDirection="row" gap={2}>
-        <text onClick={props.onStop}>[Stop]</text>
-        <text onClick={props.onIgnore}>[Ignore]</text>
+        <box onClick={props.onStop}><text>[Stop]</text></box>
+        <box onClick={props.onIgnore}><text>[Ignore]</text></box>
       </box>
     </box>
   )

@@ -38,12 +38,12 @@ export function DialogHistory(props: {
     <box flexDirection="column" gap={1} padding={2}>
       <box flexDirection="row" justifyContent="space-between">
         <text>History Search</text>
-        <text onClick={props.onClose}>esc</text>
+        <box onClick={props.onClose}><text>esc</text></box>
       </box>
       
       <input 
         value={query()} 
-        onInput={(e) => setQuery(e.target.value)} 
+        onInput={(e) => setQuery(typeof e === 'string' ? e : e.target?.value ?? '')} 
         onSubmit={search}
         placeholder="Search history..."
       />

@@ -24,7 +24,6 @@ export function DialogMode(props: {
       <text>Select Mode</text>
       {modes.map(mode => (
         <box 
-          key={mode.value} 
           flexDirection="row" 
           gap={1}
           onClick={() => props.onSelect(mode.value)}
