@@ -165,4 +165,34 @@ describe("TUI组件系统性验证", () => {
       }
     })
   })
+
+  describe("集成组件验证", () => {
+    it("Footer集成组件应该存在", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/footer-integrated.tsx", "utf-8")
+      expect(content).toContain("Footer")
+      expect(content).toContain("Mode")
+      expect(content).toContain("Goal")
+      expect(content).toContain("tokens")
+    })
+
+    it("Sidebar集成组件应该存在", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/sidebar-integrated.tsx", "utf-8")
+      expect(content).toContain("Sidebar")
+      expect(content).toContain("Tasks")
+      expect(content).toContain("Subagents")
+      expect(content).toContain("Skills")
+      expect(content).toContain("Agents")
+    })
+
+    it("SessionLayout应该存在", async () => {
+      const fs = await import("fs")
+      const content = fs.readFileSync("/Users/onetwo/Documents/trae_projects/HelixAgent/packages/opencode/src/cli/cmd/tui/component/session-layout.tsx", "utf-8")
+      expect(content).toContain("SessionLayout")
+      expect(content).toContain("Header")
+      expect(content).toContain("Sidebar")
+      expect(content).toContain("Chat Area")
+    })
+  })
 })
