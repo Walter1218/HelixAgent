@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "bun:test"
+import { describe, it, expect } from "bun:test"
 
 // 模拟LLM的集成测试
 // 验证模块间的交互，不需要真实API Key
@@ -37,20 +37,18 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
   // 模拟Actor创建流程
   describe("Phase 2: Actor创建流程", () => {
     it("完整Actor创建流程", async () => {
-      const { Actor } = await import("@/actor/schema")
-      const { Service: ActorRegistry } = await import("@/actor/registry")
       const { parseReturnHeader } = await import("@/actor/return-header")
 
       // 1. 创建Actor实例
-      const actor = {
+      const actor: Record<string, unknown> = {
         sessionID: "test-session",
         actorID: "explore-123",
-        mode: "subagent" as const,
-        status: "pending" as const,
-        lifecycle: "ephemeral" as const,
+        mode: "subagent",
+        status: "pending",
+        lifecycle: "ephemeral",
         agent: "explore",
         description: "Explore codebase",
-        contextMode: "state" as const,
+        contextMode: "state",
         background: true,
         lastTurnTime: Date.now(),
         turnCount: 0,
@@ -81,16 +79,14 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
   // 模拟Task管理流程
   describe("Phase 2: Task管理流程", () => {
     it("完整Task生命周期", async () => {
-      const { Task } = await import("@/task/schema")
-
       // 1. 创建任务
-      const task = {
+      const task: Record<string, unknown> = {
         id: "T1",
         sessionID: "test-session",
         title: "Implement user login",
-        status: "open" as const,
-        priority: "high" as const,
-        complexity: "moderate" as const,
+        status: "open",
+        priority: "high",
+        complexity: "moderate",
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }
@@ -104,9 +100,10 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
 
       // 3. 完成任务
       task.status = "done"
-      const completedTask = { ...task, completedAt: Date.now() }
-      expect(completedTask.status).toBe("done")
-      expect(completedTask.completedAt).toBeDefined()
+      task.completedAt = Date.now()
+      task.updatedAt = Date.now()
+      expect(task.status).toBe("done")
+      expect(task.completedAt).toBeDefined()
     })
 
     it("子任务层级", async () => {
@@ -142,8 +139,6 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
   // 模拟Goal评估流程
   describe("Phase 2: Goal评估流程", () => {
     it("完整Goal评估流程", async () => {
-      const { Verdict } = await import("@/session/goal")
-
       // 1. 设置目标
       const goal = {
         condition: "Create a file named test.txt",
@@ -360,7 +355,6 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
       
       // 6. 完成任务
       task.status = "done"
-      task.completedAt = Date.now()
       expect(task.status).toBe("done")
       
       // 7. 验证目标满足
@@ -373,7 +367,7 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
 
     it("模拟子智能体执行流程", async () => {
       // 1. 创建子智能体
-      const actor = {
+      const actor: Record<string, unknown> = {
         actorID: "explore-123",
         agent: "explore",
         status: "pending",
