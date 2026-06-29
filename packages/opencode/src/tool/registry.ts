@@ -26,6 +26,7 @@ import { Plugin } from "../plugin"
 import { Provider } from "@/provider/provider"
 
 import { WebSearchTool } from "./websearch"
+import { WebSearchTool as WebSearchToolV2 } from "./web_search"
 import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
@@ -108,6 +109,7 @@ export const layer = Layer.effect(
     const plan = yield* PlanExitTool
     const webfetch = yield* WebFetchTool
     const websearch = yield* WebSearchTool
+    const webSearchV2 = yield* WebSearchToolV2
     const shell = yield* ShellTool
     const globtool = yield* GlobTool
     const writetool = yield* WriteTool
@@ -223,6 +225,7 @@ export const layer = Layer.effect(
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
+          web_search: Tool.init(webSearchV2),
           skill: Tool.init(skilltool),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
@@ -251,6 +254,7 @@ export const layer = Layer.effect(
             tool.fetch,
             tool.todo,
             tool.search,
+            tool.web_search,
             tool.skill,
             tool.patch,
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
@@ -296,6 +300,10 @@ export const layer = Layer.effect(
       const filtered = (yield* all()).filter((tool) => {
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
+        }
+
+        if (tool.id === WebSearchToolV2.id) {
+          return true
         }
 
         const usePatch =

@@ -186,14 +186,31 @@ export const Info = Schema.Struct({
   ),
   openspec: Schema.optional(
     Schema.Struct({
-      directory: Schema.optional(Schema.String).annotate({
+      directory: Schema.optional(Schema.String.annotate({
         description: "Directory containing OpenSpec markdown files (default: openspec/specs)",
-      }),
-      auto_verify_on_commit: Schema.optional(Schema.Boolean).annotate({
+      })),
+      auto_verify_on_commit: Schema.optional(Schema.Boolean.annotate({
         description: "Automatically run spec verification before git commit",
-      }),
+      })),
     }),
   ).annotate({ description: "OpenSpec configuration for structured requirements and verification" }),
+  webSearch: Schema.optional(
+    Schema.Struct({
+      provider: Schema.optional(Schema.Literals(["mimo", "exa", "parallel"])).annotate({
+        description: "Web search provider to use. Defaults to 'mimo'.",
+      }),
+      mimo: Schema.optional(
+        Schema.Struct({
+          apiKey: Schema.optional(Schema.String).annotate({
+            description: "API key for MiMo web search. Defaults to MIMO_WEBSEARCH_API_KEY env var.",
+          }),
+          baseUrl: Schema.optional(Schema.String).annotate({
+            description: "Base URL for MiMo web search API. Defaults to https://api.xiaomimimo.com/v1",
+          }),
+        }),
+      ).annotate({ description: "MiMo web search configuration" }),
+    }),
+  ).annotate({ description: "Web search configuration" }),
 }).annotate({ identifier: "Config" })
 
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>

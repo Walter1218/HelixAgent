@@ -1,0 +1,20 @@
+Search the web using the configured web search provider. Use this for current information beyond knowledge cutoff.
+
+The current year is {{year}}. Use this year when searching for recent information or current events.
+
+Supported providers:
+- mimo: MiMo native web_search tool (requires api-key)
+- exa: Exa Web Search
+- parallel: Parallel Web Search
+
+Default provider is mimo if configured, otherwise falls back to the legacy Exa/Parallel backend.
+
+When to use:
+- Current events, news, weather, sports, stock prices
+- Recent product releases, documentation, library versions
+- Anything likely changed after the knowledge cutoff
+
+When not to use:
+- Information already in the conversation
+- Code or files in the workspace (use read/grep instead)
+- General knowledge with no time sensitivity
