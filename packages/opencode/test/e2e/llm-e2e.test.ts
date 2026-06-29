@@ -27,7 +27,7 @@ async function createSession() {
   return response.json()
 }
 
-describe.skipIf(!APIKey)("LLM驱动端到端验证", () => {
+describe.skipIf(!API_KEY)("LLM驱动端到端验证", () => {
   let sessionId: string
 
   beforeAll(async () => {
