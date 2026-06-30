@@ -1,0 +1,7 @@
+Capture a screenshot of the current macOS desktop and return it as an image attachment.
+
+Parameters:
+- description: Optional description of what to capture or focus on.
+- include_annotations: Reserved for future use; currently ignored.
+
+Only available on macOS. The screenshot is captured to a temporary file and returned as a base64 PNG attachment.
