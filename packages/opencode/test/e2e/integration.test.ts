@@ -5,7 +5,12 @@ import { describe, it, expect } from "bun:test"
 
 describe("Phase 1-3 模块集成验证", () => {
   describe("Phase 1: Memory模块集成", () => {
-    it("MemoryService能正确实例化", async () => {
+    it("Memory.Service能正确导入", async () => {
+      const { Memory } = await import("@opencode-ai/core/memory/service")
+      expect(Memory.Service).toBeDefined()
+    })
+
+    it("MemoryService兼容类已导出", async () => {
       const { MemoryService } = await import("@opencode-ai/core/memory/service")
       const service = new MemoryService("/tmp/test-memory")
       expect(service).toBeDefined()

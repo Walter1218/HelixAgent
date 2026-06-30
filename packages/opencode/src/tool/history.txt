@@ -1,0 +1,21 @@
+- Search historical sessions and conversations.
+- Use this tool when you need to recall something from a previous conversation, find a past decision, or locate a specific tool call.
+
+Supported operations:
+- search: Full-text search across session messages. Returns matching messages with snippets.
+- around: Get messages around a specific message_id (useful for seeing context).
+
+Search filters:
+- scope: "project" to search within the current project only, "global" to search across all projects
+- session_id: Limit search to a specific session
+- kind: Filter by message kinds such as ["user", "assistant", "tool", "shell", "system"]
+- tool_name: When kind includes "tool", filter by tool name (e.g. "read", "edit")
+- time_after / time_before: Unix epoch millis time range
+- limit: Maximum results to return (default 20, max 100)
+
+around filters:
+- message_id: The anchor message ID (required)
+- before / after: Number of messages to include before/after the anchor (default 5 each)
+- session_id: Optional session to limit to
+
+Results include: session_id, message_id, type, time_created, and a text snippet.

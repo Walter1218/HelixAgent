@@ -1,8 +1,12 @@
 import * as Tool from "./tool"
-import { Schema, Effect } from "effect"
+import DESCRIPTION from "./workflow.txt"
+import { Schema, Effect, Exit, Fiber, Scope } from "effect"
+import { Workflow } from "@/workflow/workflow"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 
 export const Parameters = Schema.Struct({
-  operation: Schema.Literals(["run", "status", "wait", "cancel", "resume"]),
+  operation: Schema.Literals(["run", "status", "wait", "cancel"]),
   name: Schema.optional(Schema.String),
   script: Schema.optional(Schema.String),
   args: Schema.optional(Schema.Unknown),
@@ -10,16 +14,143 @@ export const Parameters = Schema.Struct({
   timeout_ms: Schema.optional(Schema.Number),
 })
 
-export const WorkflowTool = Tool.define(
+const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000
+
+const runs = new Map<string, { fiber: Fiber.Fiber<unknown, unknown>; startedAt: number }>()
+
+type WorkflowMetadata = {
+  run_id?: string
+  status?: string
+}
+
+function metadata(input: { run_id?: string; status?: string }): WorkflowMetadata {
+  return input
+}
+
+export const WorkflowTool = Tool.define<
+  typeof Parameters,
+  WorkflowMetadata,
+  Workflow.Service | ChildProcessSpawner | Scope.Scope
+>(
   "workflow",
   Effect.gen(function* () {
+    const workflow = yield* Workflow.Service
+    const spawner = yield* ChildProcessSpawner
+
     return {
-      description: "Run and manage workflows.",
+      description: DESCRIPTION,
       parameters: Parameters,
-      execute: (_params, _ctx) =>
+      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<WorkflowMetadata>) =>
         Effect.gen(function* () {
-          return { title: "not implemented", output: "Workflow execution is not yet implemented", metadata: {} }
-        }),
+          switch (params.operation) {
+            case "run": {
+              if (!params.script) {
+                return { title: "error", output: "script is required for run operation", metadata: metadata({}) }
+              }
+
+              const run = yield* workflow.startRun({ sessionID: ctx.sessionID, name: params.name })
+
+              const fiber = yield* Effect.scoped(
+                Effect.gen(function* () {
+                  const scope = yield* Scope.Scope
+                  const handle = yield* spawner.spawn(ChildProcess.make("sh", ["-c", params.script as string]))
+                  const exit = yield* handle.exitCode.pipe(Effect.exit)
+                  if (Exit.isSuccess(exit)) {
+                    yield* workflow.completeRun(run.runID, "completed")
+                  } else {
+                    yield* workflow.completeRun(run.runID, "failed", String(exit.cause))
+                  }
+                  return exit
+                }).pipe(Effect.forkScoped),
+              )
+
+              runs.set(run.runID, { fiber, startedAt: run.startedAt })
+
+              return {
+                title: `Workflow started: ${run.runID}`,
+                output: `Started workflow "${params.name ?? run.runID}". Use run_id "${run.runID}" to check status or wait.`,
+                metadata: metadata({ run_id: run.runID, status: "running" }),
+              }
+            }
+
+            case "status": {
+              if (!params.run_id) {
+                return { title: "error", output: "run_id is required for status operation", metadata: metadata({}) }
+              }
+              const runsBySession = yield* workflow.getRunsBySession(ctx.sessionID)
+              const run = runsBySession.find((r) => r.runID === params.run_id)
+              if (!run) {
+                return { title: "not found", output: `Workflow run ${params.run_id} not found`, metadata: metadata({}) }
+              }
+              return {
+                title: `Workflow ${run.status}`,
+                output: `run_id: ${run.runID}\nstatus: ${run.status}\nname: ${run.name ?? ""}\nstarted: ${new Date(run.startedAt).toISOString()}${run.completedAt ? `\ncompleted: ${new Date(run.completedAt).toISOString()}` : ""}${run.error ? `\nerror: ${run.error}` : ""}`,
+                metadata: metadata({ run_id: run.runID, status: run.status }),
+              }
+            }
+
+            case "wait": {
+              if (!params.run_id) {
+                return { title: "error", output: "run_id is required for wait operation", metadata: metadata({}) }
+              }
+
+              const active = runs.get(params.run_id)
+              if (!active) {
+                const runsBySession = yield* workflow.getRunsBySession(ctx.sessionID)
+                const run = runsBySession.find((r) => r.runID === params.run_id)
+                if (!run) {
+                  return { title: "not found", output: `Workflow run ${params.run_id} not found`, metadata: metadata({}) }
+                }
+                return {
+                  title: `Workflow ${run.status}`,
+                  output: `Workflow ${params.run_id} is already ${run.status}.`,
+                  metadata: metadata({ run_id: run.runID, status: run.status }),
+                }
+              }
+
+              const timeout = params.timeout_ms ?? DEFAULT_TIMEOUT_MS
+              const exit = yield* Fiber.await(active.fiber).pipe(
+                Effect.timeoutOrElse({
+                  duration: timeout,
+                  orElse: () => Effect.succeed(Exit.fail(new Error(`Workflow ${params.run_id} timed out after ${timeout}ms`))),
+                }),
+              )
+
+              if (Exit.isFailure(exit)) {
+                return {
+                  title: "workflow failed",
+                  output: `Workflow ${params.run_id} failed or timed out: ${exit.cause}`,
+                  metadata: metadata({ run_id: params.run_id, status: "failed" }),
+                }
+              }
+
+              const runsBySession = yield* workflow.getRunsBySession(ctx.sessionID)
+              const run = runsBySession.find((r) => r.runID === params.run_id)
+              return {
+                title: `Workflow ${run?.status ?? "completed"}`,
+                output: `Workflow ${params.run_id} completed.`,
+                metadata: metadata({ run_id: params.run_id, status: run?.status ?? "completed" }),
+              }
+            }
+
+            case "cancel": {
+              if (!params.run_id) {
+                return { title: "error", output: "run_id is required for cancel operation", metadata: metadata({}) }
+              }
+              const active = runs.get(params.run_id)
+              if (active) {
+                yield* Fiber.interrupt(active.fiber)
+                runs.delete(params.run_id)
+              }
+              yield* workflow.completeRun(params.run_id, "cancelled")
+              return {
+                title: "workflow cancelled",
+                output: `Workflow ${params.run_id} cancelled.`,
+                metadata: metadata({ run_id: params.run_id, status: "cancelled" }),
+              }
+            }
+          }
+        }).pipe(Effect.orDie),
     }
   }),
 )

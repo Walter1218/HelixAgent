@@ -12,7 +12,7 @@ describe("Phase 1-3 模拟LLM集成验证", () => {
       const { Embedder } = await import("@opencode-ai/core/memory/embedder")
       const { VecStore } = await import("@opencode-ai/core/memory/vec-store")
 
-      // 1. 创建Memory服务
+      // 1. 创建Memory服务（兼容类）
       const service = new MemoryService("/tmp/test-memory")
       expect(service).toBeDefined()
 

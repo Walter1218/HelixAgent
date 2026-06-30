@@ -1,0 +1,17 @@
+Run and manage workflows.
+
+A workflow is a shell command or script that runs asynchronously. Use this tool to:
+- run: Start a new workflow (shell command). Returns immediately with a run_id.
+- status: Check the status of a workflow run.
+- wait: Block until a workflow run completes or times out.
+- cancel: Cancel a running workflow run.
+
+Parameters:
+- operation: "run", "status", "wait", or "cancel"
+- script: Shell command to execute (required for run)
+- name: Optional human-readable name for the workflow
+- args: Optional arguments (currently unused for shell workflows)
+- run_id: Required for status/wait/cancel
+- timeout_ms: Optional timeout for wait (default: 5 minutes)
+
+The workflow output and exit status are captured and returned when the run completes.

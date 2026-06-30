@@ -11,6 +11,8 @@ import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { Database } from "@opencode-ai/core/database/database"
+import { Memory } from "@opencode-ai/core/memory/service"
+import { Workflow } from "@/workflow/workflow"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
@@ -66,6 +68,10 @@ import { ActorWaiter } from "@/actor/waiter"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.opencode || flags.exa || flags.parallel
+}
+
+export function legacyWebSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
+  return providerID === ProviderV2.ID.opencode && (flags.exa || flags.parallel)
 }
 
 type TaskDef = Tool.InferDef<typeof TaskTool>
@@ -299,7 +305,7 @@ export const layer = Layer.effect(
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const filtered = (yield* all()).filter((tool) => {
         if (tool.id === WebSearchTool.id) {
-          return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
+          return legacyWebSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }
 
         if (tool.id === WebSearchToolV2.id) {
@@ -379,6 +385,8 @@ export const defaultLayer = Layer.suspend(() =>
       Layer.provideMerge(ActorWaiter.defaultLayer),
       Layer.provide(Database.defaultLayer),
       Layer.provide(RuntimeFlags.defaultLayer),
+      Layer.provide(Memory.defaultLayer),
+      Layer.provide(Workflow.defaultLayer),
     ),
 )
 
@@ -485,6 +493,8 @@ export const node = LayerNode.make({
     TaskRegistry.node,
     ActorSpawn.node,
     ActorWaiter.node,
+    Memory.node,
+    Workflow.node,
   ],
 })
 

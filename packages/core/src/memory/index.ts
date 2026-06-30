@@ -1,4 +1,4 @@
-export { MemoryService, type Interface } from "./service"
+export { Service, type Interface } from "./service"
 export { Embedder } from "./embedder"
 export { VecStore } from "./vec-store"
 export { buildFtsQuery } from "./fts-query"
