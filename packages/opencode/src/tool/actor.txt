@@ -1,0 +1,19 @@
+Spawn and manage subagents for parallel task execution.
+
+Operations:
+- run: Alias for spawn; create and register a new subagent actor.
+- spawn: Create and register a new subagent actor.
+- status: Get the current status of an actor by actor_id.
+- wait: Wait for an actor to complete or timeout.
+- cancel: Mark an actor as cancelled and remove it from active tracking.
+- send: Send a message/content to an actor (updates its description/context).
+
+Parameters:
+- operation: one of run, spawn, status, wait, cancel, send
+- subagent_type: Agent type for spawn/run (default: build)
+- description: Optional human-readable description
+- prompt: Task prompt for spawn/run
+- actor_id: Target actor ID for status/wait/cancel/send
+- to_actor_id: Optional destination actor ID for send
+- content: Message content for send
+- timeout_ms: Optional timeout for wait (default: 60 seconds)
