@@ -63,6 +63,11 @@ import { AutoDream } from "@/session/auto-dream"
 import { SessionCheckpoint } from "@/session/checkpoint"
 import { DREAM_TASK, DISTILL_TASK } from "@/session/auto-dream"
 import { SystemPromptBuilder } from "./system-prompt-builder"
+import { Workflow } from "@/workflow/workflow"
+import { Team } from "@/team/team"
+import { AST } from "@/ast/ast"
+import { Evolution } from "@/evolution/evolution"
+import { Scheduler } from "@/scheduler/scheduler"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -150,6 +155,11 @@ export const layer = Layer.effect(
     const modeRegistry = yield* ModeRegistry.Service
     const autoDream = yield* AutoDream.Service
     const checkpoint = yield* SessionCheckpoint.Service
+    const maybeWorkflow = yield* Effect.serviceOption(Workflow.Service)
+    const maybeTeam = yield* Effect.serviceOption(Team.Service)
+    const maybeAST = yield* Effect.serviceOption(AST.Service)
+    const maybeEvolution = yield* Effect.serviceOption(Evolution.Service)
+    const maybeScheduler = yield* Effect.serviceOption(Scheduler.Service)
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
       return {
@@ -676,7 +686,7 @@ export const layer = Layer.effect(
           variant,
         },
         system: input.system,
-        format: input.format,
+        format: input.format ? Schema.decodeUnknownSync(SessionV1.Format)(input.format) : undefined,
       }
 
       const current = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
@@ -1088,11 +1098,13 @@ export const layer = Layer.effect(
       throw new Error("Impossible")
     })
 
-    const runLoop: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.run")(
-      function* (sessionID: SessionID) {
+    const runLoopBody: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts> = Effect.fn(
+      "SessionPrompt.runBody",
+    )(function* (sessionID: SessionID) {
         const ctx = yield* InstanceState.context
         let structured: unknown
         let step = 0
+        let accumulatedTokens = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1104,6 +1116,24 @@ export const layer = Layer.effect(
           )
 
           const { user: lastUser, assistant: lastAssistant, finished: lastFinished, tasks } = MessageV2.latest(msgs)
+
+          if (lastFinished) {
+            accumulatedTokens +=
+              lastFinished.tokens.input + lastFinished.tokens.output + lastFinished.tokens.reasoning
+          }
+
+          const budgetExceeded = Option.match(maybeScheduler, {
+            onNone: () => false,
+            onSome: () => accumulatedTokens > Scheduler.DEFAULT_SCHEDULE_CONFIG.dailyBudget,
+          })
+          if (budgetExceeded) {
+            yield* Effect.logWarning("scheduler: daily token budget exceeded, deferring to subtasks", {
+              "session.id": sessionID,
+              accumulatedTokens,
+              budget: Scheduler.DEFAULT_SCHEDULE_CONFIG.dailyBudget,
+            })
+            break
+          }
 
           if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
 
@@ -1399,7 +1429,101 @@ export const layer = Layer.effect(
           }).pipe(Effect.ignore, Effect.forkIn(scope))
         }
 
+        yield* Option.match(maybeTeam, {
+          onNone: () => Effect.void,
+          onSome: (team) =>
+            team.formatTeamByOwnerSession(sessionID).pipe(
+              Effect.flatMap((summary) =>
+                summary ? Effect.logInfo("team summary", { "session.id": sessionID, summary }) : Effect.void,
+              ),
+              Effect.catch(() => Effect.void),
+            ),
+        })
+
+        yield* Option.match(maybeAST, {
+          onNone: () => Effect.void,
+          onSome: (ast) =>
+            Effect.gen(function* () {
+              const changedFiles = yield* ast.getChangedFiles(sessionID)
+              if (changedFiles.length === 0) return
+              const radii = yield* ast.analyzeChangedFiles(changedFiles, ctx.worktree).pipe(
+                Effect.catch(() => Effect.succeed([] as AST.BlastRadius[])),
+              )
+              for (const radius of radii) {
+                yield* Effect.logInfo("ast: blast radius", {
+                  "session.id": sessionID,
+                  file: radius.file,
+                  dependents: radius.dependents.length,
+                  depth: radius.depth,
+                })
+              }
+              yield* ast.clearChangedFiles(sessionID)
+            }).pipe(Effect.catch(() => Effect.void), Effect.forkIn(scope)),
+        })
+
+        const evolutionMsgs = yield* MessageV2.filterCompactedEffect(sessionID).pipe(
+          Effect.provideService(Database.Service, database),
+        )
+        const lastUserMsg = evolutionMsgs.findLast((m) => m.info.role === "user")
+        if (lastUserMsg) {
+          const evolutionConfig = yield* modeRegistry.getEvolutionConfig(lastUserMsg.info.agent)
+          if (evolutionConfig.evolutionEnabled) {
+            yield* Option.match(maybeEvolution, {
+              onNone: () => Effect.void,
+              onSome: (evolution) =>
+                evolution.exportSession(sessionID).pipe(
+                  Effect.flatMap((result) =>
+                    result.pairCount > 0
+                      ? Effect.logInfo("evolution: exported dpo pairs", {
+                          "session.id": sessionID,
+                          pairs: result.pairCount,
+                          outputPath: result.outputPath,
+                        })
+                      : Effect.void,
+                  ),
+                  Effect.catch(() => Effect.void),
+                ),
+            })
+          }
+        }
+
         return yield* lastAssistant(sessionID)
+      },
+    )
+
+    const runLoop: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.run")(
+      function* (sessionID: SessionID) {
+        const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
+        const run = yield* Option.match(maybeWorkflow, {
+          onNone: () => Effect.succeed(Option.none<Workflow.WorkflowRun>()),
+          onSome: (workflow) =>
+            workflow.startRun({ sessionID, name: session.title }).pipe(
+              Effect.tapError((error) =>
+                Effect.logWarning("failed to start workflow run", { error: String(error), "session.id": sessionID }),
+              ),
+              Effect.option,
+            ),
+        })
+
+        return yield* runLoopBody(sessionID).pipe(
+          Effect.onExit((exit) =>
+            Option.match(run, {
+              onNone: () => Effect.void,
+              onSome: (r) =>
+                Option.match(maybeWorkflow, {
+                  onNone: () => Effect.void,
+                  onSome: (workflow) =>
+                    Exit.match(exit, {
+                      onSuccess: () => workflow.completeRun(r.runID, "completed"),
+                      onFailure: (cause) =>
+                        Cause.hasInterruptsOnly(cause)
+                          ? workflow.completeRun(r.runID, "cancelled")
+                          : workflow.completeRun(r.runID, "failed", Cause.pretty(cause)),
+                    }).pipe(Effect.ignore),
+                }),
+            }),
+          ),
+        )
       },
     )
 
@@ -1556,8 +1680,19 @@ export const layer = Layer.effect(
 
 export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Agent.defaultLayer,
+        Database.defaultLayer,
+        SystemPrompt.defaultLayer,
+        LLM.defaultLayer,
+        CrossSpawnSpawner.defaultLayer,
+        RuntimeFlags.defaultLayer,
+        EventV2Bridge.defaultLayer,
+        SessionStatus.defaultLayer.pipe(Layer.provide(Database.defaultLayer)),
+      ),
+    ),
     Layer.provide(SessionRunState.defaultLayer),
-    Layer.provide(SessionStatus.defaultLayer),
     Layer.provide(SessionCompaction.defaultLayer),
     Layer.provide(SessionProcessor.defaultLayer),
     Layer.provide(Command.defaultLayer),
@@ -1575,17 +1710,6 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(SessionRevert.defaultLayer),
     Layer.provide(SessionSummary.defaultLayer),
     Layer.provide(Image.defaultLayer),
-    Layer.provide(
-      Layer.mergeAll(
-        Agent.defaultLayer,
-        Database.defaultLayer,
-        SystemPrompt.defaultLayer,
-        LLM.defaultLayer,
-        CrossSpawnSpawner.defaultLayer,
-        RuntimeFlags.defaultLayer,
-        EventV2Bridge.defaultLayer,
-      ),
-    ),
   ),
 )
 const ModelRef = Schema.Struct({

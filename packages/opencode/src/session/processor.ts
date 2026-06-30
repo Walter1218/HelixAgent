@@ -2,7 +2,7 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Image } from "@/image/image"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
-import { Cause, Deferred, Effect, Exit, Layer, Context, Scope, Schema } from "effect"
+import { Cause, Context, Deferred, Effect, Exit, Layer, Option, Scope, Schema } from "effect"
 import * as Stream from "effect/Stream"
 import { Agent } from "@/agent/agent"
 import { Config } from "@/config/config"
@@ -29,9 +29,23 @@ import { Trace } from "@/trace/trace"
 import { Metrics } from "@/metrics/metrics"
 import { TokenTracker } from "@/token/tracker"
 import { Cardinal } from "@/session/cardinal"
+import { AST } from "@/ast/ast"
+import { OpenSpecHook } from "@/openspec/hook"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
+
+function extractChangedFilesFromToolInput(toolName: string, input: unknown): string[] {
+  if (toolName !== "write" && toolName !== "edit" && toolName !== "apply_patch" && toolName !== "multiedit") {
+    return []
+  }
+  if (!isRecord(input)) return []
+  const path = input.path
+  if (typeof path === "string") return [path]
+  const paths = input.paths
+  if (Array.isArray(paths)) return paths.filter((p): p is string => typeof p === "string")
+  return []
+}
 
 export interface Handle {
   readonly message: SessionV1.Assistant
@@ -102,6 +116,8 @@ export const layer = Layer.effect(
     const metrics = yield* Metrics.Service
     const tokenTracker = yield* TokenTracker.Service
     const cardinal = yield* Cardinal.Service
+    const maybeAST = yield* Effect.serviceOption(AST.Service)
+    const maybeOpenSpecHook = yield* Effect.serviceOption(OpenSpecHook.Service)
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
       // Pre-capture snapshot before the LLM stream starts. The AI SDK
@@ -447,6 +463,36 @@ export const layer = Layer.effect(
               attachments: attachments.length ? attachments : undefined,
             }
             yield* completeToolCall(value.id, output)
+            const changedFiles = extractChangedFilesFromToolInput(
+              value.name ?? "unknown",
+              toolCall?.part.state.input,
+            )
+            if (changedFiles.length > 0) {
+              yield* Option.match(maybeAST, {
+                onNone: () => Effect.void,
+                onSome: (ast) => ast.recordChangedFiles(ctx.sessionID, changedFiles).pipe(Effect.ignore),
+              })
+              yield* Option.match(maybeOpenSpecHook, {
+                onNone: () => Effect.void,
+                onSome: (hook) =>
+                  Effect.forEach(changedFiles, (file) =>
+                    hook.checkAfterToolCall(value.name ?? "unknown", file).pipe(
+                      Effect.flatMap((result) =>
+                        result.allApproved
+                          ? Effect.void
+                          : Effect.logWarning("openspec: compliance check failed", {
+                              "session.id": ctx.sessionID,
+                              tool: value.name,
+                              file,
+                              affectedSpecs: result.affectedSpecs.map((s) => s.filePath),
+                              missing: result.results.flatMap((r) => r.missingRequirements),
+                            }),
+                      ),
+                      Effect.catch(() => Effect.void),
+                    ),
+                  ).pipe(Effect.ignore),
+              })
+            }
             yield* trace.emit({
               id: `tool-${value.id}`,
               type: "action",
@@ -794,6 +840,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Config.defaultLayer),
     Layer.provide(Database.defaultLayer),
     Layer.provide(EventV2Bridge.defaultLayer),
+    Layer.provide(AST.defaultLayer),
+    Layer.provide(OpenSpecHook.defaultLayer),
   ),
 )
 
@@ -817,6 +865,7 @@ export const node = LayerNode.make({
     Metrics.node,
     TokenTracker.node,
     Cardinal.node,
+    AST.node,
   ],
 })
 

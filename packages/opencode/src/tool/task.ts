@@ -10,11 +10,12 @@ import { Agent } from "../agent/agent"
 import { deriveSubagentSessionPermission } from "../agent/subagent-permissions"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
-import { Effect, Exit, Schema, Scope } from "effect"
+import { Effect, Exit, Option, Schema, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@opencode-ai/core/database/database"
 import { ActorRegistry } from "@/actor/registry"
+import { Team } from "@/team/team"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -90,6 +91,7 @@ export const TaskTool = Tool.define(
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
     const actorRegistry = yield* ActorRegistry.Service
+    const maybeTeam = yield* Effect.serviceOption(Team.Service)
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -172,6 +174,16 @@ export const TaskTool = Tool.define(
         lastTurnTime: Date.now(),
         turnCount: 0,
         time: { created: Date.now(), updated: Date.now() },
+      })
+      yield* Option.match(maybeTeam, {
+        onNone: () => Effect.void,
+        onSome: (team) =>
+          team.addMemberToOwnerSession(ctx.sessionID, {
+            sessionID: nextSession.id,
+            agent: next.name,
+            role: "task",
+            joinedAt: Date.now(),
+          }).pipe(Effect.ignore),
       })
 
       const msg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(

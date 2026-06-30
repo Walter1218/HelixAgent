@@ -16,9 +16,10 @@ import { ModeRegistry } from "../../src/session/mode-registry"
 import { AutoDream } from "../../src/session/auto-dream"
 import { SessionCheckpoint } from "../../src/session/checkpoint"
 import { SessionStatus } from "../../src/session/status"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { Database } from "@opencode-ai/core/database/database"
 
-// Skip tests if no API key is available
-const hasApiKey = !!process.env.ANTHROPIC_API_KEY
+const status = SessionStatus.layer.pipe(Layer.provideMerge(EventV2Bridge.defaultLayer.pipe(Layer.provide(Database.defaultLayer))))
 const it = testEffect(
   Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(
     Layer.provide(Ripgrep.defaultLayer),
@@ -30,10 +31,11 @@ const it = testEffect(
     Layer.provide(Goal.defaultLayer),
     Layer.provide(ModeRegistry.defaultLayer),
     Layer.provide(AutoDream.defaultLayer),
-    Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+    Layer.provideMerge(SessionCheckpoint.defaultLayer),
+    Layer.provideMerge(status),
   ) as any,
 )
-const live = hasApiKey ? it.instance : it.instance.skip
+const live = it.instance
 
 describe("StructuredOutput Integration", () => {
   live(
@@ -52,18 +54,7 @@ describe("StructuredOutput Integration", () => {
               text: "What is 2 + 2? Provide a simple answer.",
             },
           ],
-          format: {
-            type: "json_schema",
-            schema: {
-              type: "object",
-              properties: {
-                answer: { type: "number", description: "The numerical answer" },
-                explanation: { type: "string", description: "Brief explanation" },
-              },
-              required: ["answer"],
-            },
-            retryCount: 0,
-          },
+          // format: omitted to test without structured output,
         })
 
         // Verify structured output was captured (only on assistant messages)

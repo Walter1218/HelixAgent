@@ -163,6 +163,9 @@ export interface Interface {
   readonly formatBlastRadius: (radius: BlastRadius) => Effect.Effect<string>
   readonly buildDependencyGraph: (rootPath: string) => Effect.Effect<Map<string, string[]>, Error>
   readonly analyzeChangedFiles: (changedFiles: string[], rootPath: string) => Effect.Effect<BlastRadius[], Error>
+  readonly recordChangedFiles: (sessionID: string, files: string[]) => Effect.Effect<void>
+  readonly getChangedFiles: (sessionID: string) => Effect.Effect<string[]>
+  readonly clearChangedFiles: (sessionID: string) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/AST") {}
@@ -172,6 +175,7 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const dependencyCache = yield* Ref.make<Map<string, string[]> | null>(null)
+    const changedFilesCache = yield* Ref.make<Map<string, Set<string>>>(new Map())
 
     const buildDependencyGraph = Effect.fn("AST.buildDependencyGraph")(function* (rootPath: string) {
       const cached = yield* Ref.get(dependencyCache)
@@ -206,12 +210,39 @@ export const layer = Layer.effect(
       return changedFiles.map((file) => calculateBlastRadius(file, graph))
     })
 
+    const recordChangedFiles = Effect.fn("AST.recordChangedFiles")(function* (
+      sessionID: string,
+      files: string[],
+    ) {
+      const cache = yield* Ref.get(changedFilesCache)
+      const existing = cache.get(sessionID)
+      if (existing) {
+        for (const file of files) existing.add(file)
+      } else {
+        cache.set(sessionID, new Set(files))
+      }
+    })
+
+    const getChangedFiles = Effect.fn("AST.getChangedFiles")(function* (sessionID: string) {
+      const cache = yield* Ref.get(changedFilesCache)
+      const files = cache.get(sessionID)
+      return files ? Array.from(files) : []
+    })
+
+    const clearChangedFiles = Effect.fn("AST.clearChangedFiles")(function* (sessionID: string) {
+      const cache = yield* Ref.get(changedFilesCache)
+      cache.delete(sessionID)
+    })
+
     return Service.of({
       calculateBlastRadius: (file, deps) => Effect.succeed(calculateBlastRadius(file, deps)),
       extractContract: (content) => Effect.succeed(extractContract(content)),
       formatBlastRadius: (radius) => Effect.succeed(formatBlastRadius(radius)),
       buildDependencyGraph,
       analyzeChangedFiles,
+      recordChangedFiles,
+      getChangedFiles,
+      clearChangedFiles,
     })
   }),
 )

@@ -65,6 +65,8 @@ import { ActorRegistry } from "@/actor/registry"
 import { TaskRegistry } from "@/task/registry"
 import { ActorSpawn } from "@/actor/spawn"
 import { ActorWaiter } from "@/actor/waiter"
+import { Team } from "@/team/team"
+import { Scheduler } from "@/scheduler/scheduler"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.opencode || flags.exa || flags.parallel
@@ -495,6 +497,7 @@ export const node = LayerNode.make({
     ActorWaiter.node,
     Memory.node,
     Workflow.node,
+    Scheduler.node,
   ],
 })
 

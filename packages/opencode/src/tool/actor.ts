@@ -1,9 +1,10 @@
 import * as Tool from "./tool"
 import DESCRIPTION from "./actor.txt"
-import { Schema, Effect } from "effect"
+import { Schema, Effect, Option } from "effect"
 import { ActorRegistry } from "@/actor/registry"
 import { ActorSpawn } from "@/actor/spawn"
 import { ActorWaiter } from "@/actor/waiter"
+import { Team } from "@/team/team"
 import type { Actor } from "@/actor/schema"
 
 export const Parameters = Schema.Struct({
@@ -40,6 +41,7 @@ export const ActorTool = Tool.define<
     const actorRegistry = yield* ActorRegistry.Service
     const actorSpawn = yield* ActorSpawn.Service
     const actorWaiter = yield* ActorWaiter.Service
+    const maybeTeam = yield* Effect.serviceOption(Team.Service)
 
     return {
       description: DESCRIPTION,
@@ -72,6 +74,16 @@ export const ActorTool = Tool.define<
                 background: false,
               })
               yield* actorRegistry.register(actor)
+              yield* Option.match(maybeTeam, {
+                onNone: () => Effect.void,
+                onSome: (team) =>
+                  team.addMemberToOwnerSession(ctx.sessionID, {
+                    sessionID: actor.actorID,
+                    agent: params.subagent_type ?? "build",
+                    role: "actor",
+                    joinedAt: Date.now(),
+                  }).pipe(Effect.ignore),
+              })
               return {
                 title: `Spawned ${actor.actorID}`,
                 output: formatActor(actor),

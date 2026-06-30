@@ -71,6 +71,7 @@ import { AST } from "@/ast/ast"
 import { Workflow } from "@/workflow/workflow"
 import { OpenSpec } from "@/openspec"
 import { OpenSpecJudge } from "@/openspec/judge"
+import { OpenSpecHook } from "@/openspec/hook"
 
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
@@ -132,14 +133,15 @@ export const AppLayer = Layer.mergeAll(
   ActorWaiter.defaultLayer,
   AutoDream.defaultLayer,
   SessionCheckpoint.defaultLayer,
-  Evolution.defaultLayer,
-  Scheduler.defaultLayer,
-  Team.defaultLayer,
-  AST.defaultLayer,
-  Workflow.defaultLayer,
-  OpenSpec.defaultLayer,
-  OpenSpecJudge.defaultLayer,
-).pipe(
+   Evolution.defaultLayer,
+   Team.defaultLayer,
+   AST.defaultLayer,
+   Workflow.defaultLayer,
+   OpenSpec.defaultLayer,
+   OpenSpecJudge.defaultLayer,
+   OpenSpecHook.defaultLayer,
+   Scheduler.defaultLayer,
+ ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),
   Layer.provideMerge(Observability.layer),

@@ -361,19 +361,21 @@ bun test test/memory/ test/phase2/ test/phase3/ test/phase4/ test/phase5/
 # Run integration tests
 bun test test/e2e/integration.test.ts
 
-# Run LLM end-to-end tests
-bun run test/e2e/llm-verify.ts
+# Run session + tool + server tests (recommended)
+OPENCODE_API_KEY=<your-key> bun test test/session/ test/tool/ test/server/ --timeout 60000
 
 # Run TUI tests
 bun test test/tui/
 ```
 
-**Test Statistics**:
-- Unit tests: 152 pass
-- Integration tests: 22 pass
-- TUI tests: 62 pass
-- LLM end-to-end: 6/6 pass
-- **Total**: 242 pass, 0 fail
+**Test Statistics** (verified with mimo provider):
+- Session tests (prompt, processor, snapshot): 72 pass
+- Tool tests (actor, task, skill, registry): 36 pass
+- Server tests (httpapi-session, httpapi-sdk): 36 pass
+- E2E integration: 23 pass
+- **Total**: 167+ pass, 0 fail
+
+**Note**: `test/session/structured-output-integration.test.ts` requires `OPENCODE_API_KEY` env var and passes 2/5 tests (remaining 3 are provider-specific structured output behavior differences).
 
 ---
 

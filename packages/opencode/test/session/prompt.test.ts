@@ -205,17 +205,11 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
     Metrics.defaultLayer,
     TokenTracker.defaultLayer,
     Cardinal.defaultLayer,
+    Ripgrep.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
   const question = Question.layer.pipe(Layer.provideMerge(deps))
   const todo = Todo.layer.pipe(Layer.provideMerge(deps))
-  const registry = ToolRegistry.layer.pipe(
-    Layer.provide(Skill.defaultLayer),
-    Layer.provide(FetchHttpClient.layer),
-    Layer.provide(CrossSpawnSpawner.defaultLayer),
-    Layer.provide(Git.defaultLayer),
-    Layer.provide(Ripgrep.defaultLayer),
-    Layer.provide(Format.defaultLayer),
-    Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
+  const registry = ToolRegistry.defaultLayer.pipe(
     Layer.provideMerge(todo),
     Layer.provideMerge(question),
     Layer.provideMerge(deps),
@@ -254,6 +248,7 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
     ),
     Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
     Layer.provideMerge(deps),
+    Layer.provideMerge(status),
     Layer.provide(summary),
   )
 }

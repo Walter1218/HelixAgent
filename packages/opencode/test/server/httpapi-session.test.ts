@@ -45,6 +45,7 @@ import { ModeRegistry } from "../../src/session/mode-registry"
 import { AutoDream } from "../../src/session/auto-dream"
 import { SessionCheckpoint } from "../../src/session/checkpoint"
 import { SessionStatus } from "../../src/session/status"
+import { EventV2Bridge } from "@/event-v2-bridge"
 
 const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES
 const workspaceLayer = Workspace.defaultLayer.pipe(
@@ -68,6 +69,7 @@ const httpApiLayer = servedRoutes.pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
   Layer.provideMerge(NodeServices.layer),
 )
+const status = SessionStatus.layer.pipe(Layer.provideMerge(EventV2Bridge.defaultLayer.pipe(Layer.provide(Database.defaultLayer))))
 const it = testEffect(
   Layer.mergeAll(
     instanceStoreLayer,
@@ -86,7 +88,8 @@ const it = testEffect(
     AutoDream.defaultLayer,
   ).pipe(
     Layer.provide(Ripgrep.defaultLayer),
-    Layer.provideMerge(Layer.mergeAll(SessionCheckpoint.defaultLayer, SessionStatus.defaultLayer)),
+    Layer.provideMerge(SessionCheckpoint.defaultLayer),
+    Layer.provideMerge(status),
   ) as any,
 )
 
