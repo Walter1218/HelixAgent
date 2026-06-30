@@ -94,17 +94,13 @@ export const layer = Layer.effect(
 
           if (existing[0]?.fingerprint === fingerprint) return 0
 
+          yield* db.run(sql`DELETE FROM memory_fts WHERE path = ${absPath}`).pipe(Effect.orDie)
+
           yield* db
             .run(
               sql`
                 INSERT INTO memory_fts (path, scope, scope_id, type, body, fingerprint)
                 VALUES (${absPath}, ${locator.scope}, ${locator.scope_id}, ${locator.type}, ${body}, ${fingerprint})
-                ON CONFLICT(path) DO UPDATE SET
-                  scope = excluded.scope,
-                  scope_id = excluded.scope_id,
-                  type = excluded.type,
-                  body = excluded.body,
-                  fingerprint = excluded.fingerprint
               `,
             )
             .pipe(Effect.orDie)

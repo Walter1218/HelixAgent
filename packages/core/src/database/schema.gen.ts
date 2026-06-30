@@ -269,6 +269,31 @@ export default {
       yield* tx.run(`CREATE INDEX \`session_workspace_idx\` ON \`session\` (\`workspace_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_parent_idx\` ON \`session\` (\`parent_id\`);`)
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
+      yield* tx.run(`
+        CREATE TABLE \`workflow_run\` (
+          \`id\` text PRIMARY KEY,
+          \`run_id\` text NOT NULL UNIQUE,
+          \`session_id\` text NOT NULL,
+          \`name\` text,
+          \`status\` text NOT NULL,
+          \`started_at\` integer NOT NULL,
+          \`completed_at\` integer,
+          \`error\` text
+        );
+      `)
+      yield* tx.run(`CREATE INDEX \`idx_workflow_run_session\` ON \`workflow_run\` (\`session_id\`);`)
+      yield* tx.run(`CREATE INDEX \`idx_workflow_run_status\` ON \`workflow_run\` (\`status\`);`)
+      yield* tx.run(`
+        CREATE VIRTUAL TABLE \`memory_fts\` USING fts5(
+          path,
+          scope,
+          scope_id,
+          type,
+          body,
+          fingerprint,
+          tokenize='porter unicode61'
+        );
+      `)
     })
   },
 } satisfies Omit<DatabaseMigration.Migration, "id">

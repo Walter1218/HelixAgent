@@ -16,8 +16,7 @@ export default {
           tokenize='porter unicode61'
         )
       `)
-      yield* tx.run(`CREATE INDEX IF NOT EXISTS memory_fts_scope_idx ON memory_fts(scope, scope_id)`)
-      yield* tx.run(`CREATE INDEX IF NOT EXISTS memory_fts_type_idx ON memory_fts(type)`)
+
     })
   },
 } satisfies DatabaseMigration.Migration

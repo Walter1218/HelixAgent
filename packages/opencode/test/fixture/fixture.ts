@@ -14,6 +14,7 @@ import { InstanceBootstrap } from "../../src/project/bootstrap-service"
 import type { InstanceContext } from "../../src/project/instance-context"
 import { InstanceRuntime } from "../../src/project/instance-runtime"
 import { InstanceStore } from "../../src/project/instance-store"
+import { Project } from "../../src/project/project"
 import { TestLLMServer } from "../lib/llm-server"
 
 const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap.Service.of({ run: Effect.void }))
@@ -42,7 +43,11 @@ export async function reloadTestInstance(input: { directory: string }) {
 }
 
 export async function disposeAllInstances() {
-  await InstanceRuntime.disposeAllInstances()
+  await Effect.runPromise(
+    disposeAllInstancesEffect.pipe(
+      Effect.provide(testInstanceStoreLayer.pipe(Layer.provide(Project.defaultLayer))),
+    ),
+  )
 }
 
 // Strip null bytes from paths (defensive fix for CI environment issues)

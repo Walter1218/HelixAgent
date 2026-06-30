@@ -16,7 +16,7 @@ export const Parameters = Schema.Struct({
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000
 
-const runs = new Map<string, { fiber: Fiber.Fiber<unknown, unknown>; startedAt: number }>()
+const runs = new Map<string, { fiber: Fiber.Fiber<unknown, unknown>; scope: Scope.Scope; startedAt: number }>()
 
 type WorkflowMetadata = {
   run_id?: string
@@ -50,21 +50,23 @@ export const WorkflowTool = Tool.define<
 
               const run = yield* workflow.startRun({ sessionID: ctx.sessionID, name: params.name })
 
-              const fiber = yield* Effect.scoped(
-                Effect.gen(function* () {
-                  const scope = yield* Scope.Scope
-                  const handle = yield* spawner.spawn(ChildProcess.make("sh", ["-c", params.script as string]))
-                  const exit = yield* handle.exitCode.pipe(Effect.exit)
-                  if (Exit.isSuccess(exit)) {
-                    yield* workflow.completeRun(run.runID, "completed")
-                  } else {
-                    yield* workflow.completeRun(run.runID, "failed", String(exit.cause))
-                  }
-                  return exit
-                }).pipe(Effect.forkScoped),
+              const scope = yield* Scope.make()
+              const workflowEffect = Effect.gen(function* () {
+                const handle = yield* spawner.spawn(ChildProcess.make("sh", ["-c", params.script as string]))
+                const exit = yield* handle.exitCode.pipe(Effect.exit)
+                if (Exit.isSuccess(exit)) {
+                  yield* workflow.completeRun(run.runID, "completed")
+                } else {
+                  yield* workflow.completeRun(run.runID, "failed", String(exit.cause))
+                }
+                return exit
+              }).pipe(Effect.orDie)
+
+              const fiber = yield* Effect.provideService(workflowEffect, Scope.Scope, scope).pipe(
+                Effect.forkIn(scope),
               )
 
-              runs.set(run.runID, { fiber, startedAt: run.startedAt })
+              runs.set(run.runID, { fiber, scope, startedAt: run.startedAt })
 
               return {
                 title: `Workflow started: ${run.runID}`,
@@ -140,6 +142,7 @@ export const WorkflowTool = Tool.define<
               const active = runs.get(params.run_id)
               if (active) {
                 yield* Fiber.interrupt(active.fiber)
+                yield* Scope.close(active.scope, Exit.void)
                 runs.delete(params.run_id)
               }
               yield* workflow.completeRun(params.run_id, "cancelled")
