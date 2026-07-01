@@ -15,19 +15,17 @@
 
 | 类别 | 数量 | 说明 |
 |------|------|------|
-| **已接入主链路** | 13 个服务 + 6 个工具 | 可正常运行 |
-| **已注册未接入主链路** | 8 个服务 | 代码存在但不在执行路径上 |
-| **部分实现/未集成** | 4 个模块 | 有代码但缺注册或缺调用点 |
+| **已接入主链路** | 21 个服务 + 6 个工具 | 可正常运行（含 Phase 6 + OpenSpec） |
+| **部分接入主链路** | 1 个服务 | Scheduler 仅 budget 检查 |
 | **完全未实现** | 6 个能力 | 无目录、无文件、无引用 |
 | **TUI 外化** | 5 个指示器/面板 | 已完成 Token/Mode/Goal/Task/Actor |
 
 ### 1.2 关键结论
 
-1. **DEAD_CODE_ACTIVATION_PLAN Phase 1-5 已完成**：Trace/Metrics/TokenTracker、Cardinal/AlignmentGuard/Shell Safety、Goal/Actor/Task/ModeRegistry、Auto-Dream/Checkpoint、6 个死工具均已实现并接入主链路。
-2. **Phase 6 部分完成**：Evolution/Team/AST/Workflow/Scheduler 服务已注册但未在主链路调用。
-3. **OpenSpec 系统 CLI 可用但主链路未接入**：OpenSpec/OpenSpecJudge 已注册，OpenSpecHook 未注册也未调用。
-4. **TUI 外化已完成**：Token/Mode/Goal 指示器 + Task/Actor 面板已实现，底层 API 已补充（Metrics/TokenTracker 查询接口）。
-5. **核心风险**：8 个 dormant 服务增加启动负担。
+1. **DEAD_CODE_ACTIVATION_PLAN Phase 1-6 已全部完成**：所有服务已接入主链路（Scheduler 除外，仅 budget 检查）。
+2. **OpenSpec 系统已完整接入**：OpenSpecHook 已注册并调用，OpenSpec/OpenSpecJudge 通过 OpenSpecHook 间接使用。
+3. **TUI 外化已完成**：Token/Mode/Goal 指示器 + Task/Actor 面板已实现，底层 API 已补充（Metrics/TokenTracker 查询接口）。
+4. **下一步**：Memory Vector Store、History Service、Inbox、Judge+Max 等新能力开发。
 
 ### 1.3 当前环境快照
 
@@ -101,21 +99,18 @@ bun typecheck  # ✅ 0 errors (packages/opencode)
 | multiedit tool | Phase 5 | ✅ | ✅ tool/multiedit.ts | — | 真实 | 默认启用 |
 | Memory FTS | Phase 1 | ✅ | ✅ tool/memory.ts | 真实 | — | core/memory/service.ts |
 
-### 3.2 已注册但未接入主链路 ⚠️（共 8 个）
+### 3.2 已接入主链路的 Phase 6 服务 ✅
 
-- 5 个来自 DEAD_CODE_ACTIVATION_PLAN Phase 6：Evolution、Team、AST、Workflow、Scheduler
-- 3 个来自 OpenSpec 系统：OpenSpec、OpenSpecJudge、OpenSpecHook（其中 OpenSpecHook 未注册到 app-runtime.ts）
-
-| 模块 | 来源 | 注册 | 主链路调用 | 服务实现 | 缺失点 |
-|------|------|------|-----------|---------|--------|
-| Evolution | Phase 6 | ✅ | ❌ | 真实 | `exportSession` 未调用 |
-| Team | Phase 6 | ✅ | ❌ | 真实 + DB | `addMemberToOwnerSession` 未调用 |
-| AST | Phase 6 | ✅ | ❌ | 真实 | `analyzeChangedFiles` 未调用 |
-| Workflow | Phase 6 | ✅ | ❌ prompt.ts | 真实 + DB | runLoop 未调用 startRun/completeRun |
-| Scheduler | Phase 6 | ✅ | ❌ | 真实 | `selectTasks` 未调用 |
-| OpenSpec | OpenSpec | ✅ | ❌ | 真实 | CLI 可用，主链路无感知 |
-| OpenSpecJudge | OpenSpec | ✅ | ❌ | 真实 | CLI 可用，主链路无感知 |
-| **OpenSpecHook** | OpenSpec | **❌ 未注册** | ❌ | 真实 | 未注册到 app-runtime.ts，也未调用 |
+| 模块 | 来源 | 注册 | 主链路调用 | 调用位置 | 说明 |
+|------|------|------|-----------|---------|------|
+| Evolution | Phase 6 | ✅ | ✅ | prompt.ts:1471-1486 | runLoop 结束后调用 `exportSession` |
+| Team | Phase 6 | ✅ | ✅ | prompt.ts:1432-1441 | runLoop 结束后调用 `formatTeamByOwnerSession` |
+| AST | Phase 6 | ✅ | ✅ | processor.ts:471-474, prompt.ts:1443-1461 | tool-result 后记录变更 + runLoop 后分析 blast radius |
+| Workflow | Phase 6 | ✅ | ✅ | prompt.ts:1497-1527 | 完整生命周期：startRun + completeRun |
+| Scheduler | Phase 6 | ✅ | ⚠️ | prompt.ts:1125-1136 | 仅 budget 检查，`selectTasks` 未调用 |
+| OpenSpecHook | OpenSpec | ✅ | ✅ | processor.ts:475-494 | tool-result 后调用合规检查 |
+| OpenSpec | OpenSpec | ✅ | 间接 | 通过 OpenSpecHook | CLI 可用 |
+| OpenSpecJudge | OpenSpec | ✅ | 间接 | 通过 OpenSpecHook | CLI 可用 |
 
 ### 3.3 部分实现 / 代码存在但未集成 🟡
 

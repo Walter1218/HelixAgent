@@ -1,18 +1,76 @@
 # HelixAgent 短期攻坚方向：高质量任务交付保障体系
 
-> 版本：v1.0
-> 适用范围：未来 3-4 个月（约 13-14 周）
-> 目标：补齐当前质量保障体系的主要短板，让 Cardinal、OpenSpec、Trace、Goal Judge 等模块从"注册集成"走向"真正生效"，形成可验证的交付质量闭环。
+> 版本：v2.0（完美版）
+> 适用范围：未来 4-5 个月
+> 目标：构建"需求可结构化 → Spec 可生成 → 执行可监控 → 交付可验收 → 过程可追溯"的完整质量保障闭环，让 HelixAgent 成为真正能保障任务交付质量的智能体。
 
 ---
 
-## 一、当前核心问题
+## 一、核心思想
+
+用户不必会写 spec。HelixAgent 应该通过多智能体协作，自动把模糊需求转化为**高质量、可执行、可验证的 spec**，并全程按 spec 驱动执行和验收。
+
+质量保障体系的起点不是代码修改阶段，而是**需求输入阶段**。
+
+---
+
+## 二、完美版质量保障闭环
+
+```
+用户输入需求
+    │
+    ▼
+┌─────────────────────────────┐
+│  Layer 0: 需求结构化          │
+│  - 多智能体 Spec 生成 pipeline │
+│  - 生成高质量 OpenSpec         │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  Layer 1: 执行前验收          │
+│  - Goal Judge 确认目标可达成   │
+│  - Cardinal 预检风险           │
+│  - OpenSpec pre-check         │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  Layer 2: 执行中监控          │
+│  - Trace 记录每个动作          │
+│  - Cardinal 实时拦截风险       │
+│  - AlignmentGuard 检测偏离     │
+│  - OpenSpec 持续验证          │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  Layer 3: 执行后验收          │
+│  - OpenSpec 最终验证          │
+│  - 测试/类型检查自动运行       │
+│  - Goal Judge 判定完成度       │
+│  - AST 影响分析               │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  Layer 4: 持续改进            │
+│  - Trace 持久化复盘            │
+│  - Evolution 导出训练数据      │
+│  - Spec 库积累组织知识         │
+└─────────────────────────────┘
+```
+
+---
+
+## 三、当前核心问题
 
 HelixAgent 已搭建质量保障的"骨架"，但多数机制尚未有效运行：
 
 | 模块 | 当前状态 | 主要问题 |
 |------|---------|---------|
-| **Cardinal** | 已接入 `processor.ts` | 调用时仅传入 `taskId/taskTitle/tokensUsed/totalBudget`，导致 5 条规则中 4 条基本无法触发 |
+| **多智能体 Spec 生成** | 未实现 | 用户需手动写 spec，spec 质量参差不齐 |
+| **Cardinal** | 已接入 `processor.ts` | 调用时仅传入 `taskId/taskTitle/tokensUsed/totalBudget`，5 条规则中 4 条基本无法触发 |
 | **OpenSpecHook** | 已接入 `processor.ts` | 检测失败仅 `logWarning`，不阻止代码写入，也不反馈给模型修正 |
 | **Trace** | 已接入 `processor.ts` | 事件存在内存 `Ref` 中，进程重启丢失，无法持久复盘 |
 | **Goal** | 已接入 `prompt.ts` | `/goal` 设置未暴露，`judgeEnabled` 分支实际只是轮数计数（≥12 break） |
@@ -25,181 +83,38 @@ HelixAgent 已搭建质量保障的"骨架"，但多数机制尚未有效运行�
 
 ---
 
-## 二、攻坚目标
+## 四、攻坚目标
 
-用 4 个月左右，把 HelixAgent 从"模块多但生效少"提升到：
+用 4-5 个月，把 HelixAgent 从"模块多但生效少"提升到：
 
-> **执行有监控、违规有阻断、交付有判定、过程可追溯。**
+> **需求可结构化、Spec 可生成、执行有监控、违规有阻断、交付有判定、过程可追溯。**
 
 具体表现为：
 
-1. agent 写入危险代码时能被实时阻断。
-2. agent 偏离 spec 时能收到反馈并修正。
-3. 每次任务执行的关键事件都被持久记录。
-4. 任务完成度由 judge 模型判定，而非轮数硬截断。
-5. 有自动化端到端测试验证上述能力。
+1. 用户输入需求后，系统自动生成可验证 spec，人工确认后执行。
+2. 执行前有风险预检，高风险操作需要确认。
+3. 执行中 Cardinal / OpenSpec / AlignmentGuard 实时生效。
+4. 执行后有完整验收报告（spec 达成度 + 测试结果 + goal 判定）。
+5. 所有关键事件持久化，可跨 session 查询和复盘。
+6. 有 6+ 个端到端场景测试保障质量闭环。
+7. Spec 库和 Trace 库开始积累组织知识。
 
 ---
 
-## 三、分阶段攻坚计划
+## 五、分阶段攻坚计划
 
-### Phase 1：Cardinal 风险管控生效（2 周）
+### Phase 0：基础设施（2 周）
 
-**目标**：让 Cardinal 的 5 条规则在主链路中真正触发，危险/异常操作可被 block/pause/stop/warn。
+**目标**：为 spec 生成和质量保障体系打好基础。
 
-#### 1.1 补齐 Cardinal 调用上下文
+#### 0.1 Trace 持久化
 
-**文件**：`packages/opencode/src/session/processor.ts`
+**文件**：
+- 新建 `packages/core/src/trace/trace.sql.ts`
+- 新建 `packages/core/src/database/migration/20260707_add_trace_event.ts`
+- 改造 `packages/opencode/src/trace/trace.ts`
 
-在 `case "tool-call"` 中，把当前调用：
-
-```ts
-const cardinalDecision = yield* cardinal.evaluate({
-  taskId: ctx.sessionID,
-  taskTitle: ctx.assistantMessage.agent,
-  tokensUsed: ctx.assistantMessage.tokens?.input ?? 0,
-  totalBudget: 1_000_000,
-})
-```
-
-改造为通过 `buildCardinalContext` 构建完整上下文：
-
-```ts
-const cardinalContext = yield* buildCardinalContext(value.name ?? "unknown", input)
-const cardinalDecision = yield* cardinal.evaluate(cardinalContext)
-```
-
-`buildCardinalContext` 至少提供：
-
-| 字段 | 来源 |
-|------|------|
-| `taskId` | `ctx.sessionID` |
-| `taskTitle` | `ctx.assistantMessage.agent` |
-| `diff` | 当前 `snapshot.patch()` 结果 |
-| `changedFiles` | `extractChangedFilesFromToolInput(toolName, input)` |
-| `estimatedFiles` | 从 input.path/paths 估算 |
-| `consecutiveFailures` | 当前 assistant message 下状态为 error 的 tool part 数量 |
-| `alignmentAlerts` | `ctx.alignmentAlertCount`（需 Phase 1.4 累积） |
-| `tokensUsed` / `totalBudget` | 当前 token 使用量与预算 |
-
-#### 1.2 增强 Cardinal 规则实现
-
-**文件**：`packages/opencode/src/session/cardinal.ts`
-
-- `security`：扩展危险 pattern，覆盖 `eval`、`Function("...")`、`child_process`、`rm -rf`、`DROP TABLE`、`DELETE FROM`、常见密钥格式等。
-- `excessive_changes`：当 `changedFiles.length > estimatedFiles * 2` 时触发 pause。
-- `consecutiveFailures`：连续失败 ≥3 次触发 pause。
-- `alignment`：当 `alignmentAlerts >= 3` 时触发 stop。
-- `token_limit`：保持当前逻辑，threshold 为 budget 的 20%。
-
-#### 1.3 统一 Cardinal 决策处理
-
-**文件**：`packages/opencode/src/session/processor.ts`
-
-为 `block / stop / pause / warn` 分别实现行为：
-
-| 级别 | 行为 |
-|------|------|
-| `block` | `failToolCall`，写入类工具不会生效，并记录 trace |
-| `stop` | 设置 `ctx.shouldBreak = true`，终止当前 runLoop |
-| `pause` | 弹出 permission 确认，用户/配置决定是否继续 |
-| `warn` | 记录日志和 trace，不阻断 |
-
-#### 1.4 让 AlignmentGuard 结果可累积
-
-**文件**：`packages/opencode/src/session/prompt.ts`
-
-在 runLoop 末尾调用 `detectFileDrift` 和 `detectDistraction`，把异常次数写入 session 状态，供 Cardinal `alignment` 规则读取。
-
-#### 1.5 测试
-
-**新增**：`packages/opencode/test/session/cardinal-integration.test.ts`
-
-- agent 写入 `eval(...)` → 最终被阻断。
-- 小需求改大量文件 → Cardinal pause 触发。
-- 同一工具连续失败 3 次 → Cardinal pause 触发。
-
-#### 验收标准
-- [ ] Cardinal 调用时 5 个字段全部传齐。
-- [ ] security / excessive_changes / consecutiveFailures / alignment / token_limit 至少 4 条能在主链路触发。
-- [ ] block / stop / pause / warn 四种级别行为正确。
-- [ ] 新增 3 个集成测试通过。
-- [ ] `bun typecheck` 通过。
-
----
-
-### Phase 2：OpenSpec 成为真正的验收门禁（2 周）
-
-**目标**：spec 不合规时，代码不会悄无声息地写入；模型能收到反馈并修正。
-
-#### 2.1 实现 `ast` verification 类型
-
-**文件**：`packages/opencode/src/openspec/spec.ts`
-
-当前 `ast` 类型直接 fallback 到 manual。改造为：
-
-```ts
-if (req.verification.type === "ast") {
-  return yield* checkAstRequirement(req)
-}
-```
-
-`checkAstRequirement` 解析 `target` 为 `file:pattern`，读取文件内容后用正则/AST 检查 pattern 是否存在。
-
-#### 2.2 tool-call 阶段做 pre-check
-
-**文件**：`packages/opencode/src/session/processor.ts`
-
-在 Cardinal 之后，对 write/edit/apply_patch/multiedit 工具调用 OpenSpec pre-check。结果写入 tool part metadata，供模型感知。
-
-#### 2.3 tool-result 阶段反馈给模型
-
-**文件**：`packages/opencode/src/session/processor.ts`
-
-当前不合规只 `logWarning`。改造为：当 `!result.allApproved` 时，向 session 插入一条 text part，列出缺失要求，要求模型修正。
-
-#### 2.4 支持按任务描述匹配 spec
-
-**文件**：`packages/opencode/src/openspec/hook.ts`
-
-`checkAfterToolCall` 除了按文件路径匹配，还应按工具名、任务描述关键词匹配相关 spec。
-
-#### 2.5 确保 CLI spec 命令可用
-
-**文件**：`packages/opencode/src/cli/cmd/spec.ts`
-
-- `opencode spec list`
-- `opencode spec show <path>`
-- `opencode spec verify <path>`
-
-#### 2.6 测试
-
-**新增**：`packages/opencode/test/openspec/integration.test.ts`
-
-- 带 spec 的项目，agent 实现功能但缺少某个 requirement → 模型收到反馈。
-- `ast` verification 检查函数存在性 → 返回正确结果。
-
-#### 验收标准
-- [ ] `ast` verification 可用。
-- [ ] tool-call 有 pre-check，tool-result 有反馈。
-- [ ] spec 不合规时模型能收到缺失要求。
-- [ ] CLI spec 命令可用。
-- [ ] 新增 2 个集成测试通过。
-- [ ] `bun typecheck` 通过。
-
----
-
-### Phase 3：Trace 持久化与可观测性（2 周）
-
-**目标**：trace 数据进程重启不丢失，支持历史查询、TUI 展示、Evolution 导出。
-
-#### 3.1 新增数据库表
-
-**新增**：
-- `packages/core/src/trace/trace.sql.ts`
-- `packages/core/src/database/migration/20260707_add_trace_event.ts`
-
-表结构：
+**表结构**：
 
 ```sql
 CREATE TABLE trace_event (
@@ -215,142 +130,630 @@ CREATE TABLE trace_event (
 );
 ```
 
-#### 3.2 Trace service 改为数据库实现
+**改动**：
+- `Trace.emit` 写入 SQLite
+- `Trace.getTraces` 按 `session_id` 查询并按时间排序
+- 所有 `trace.emit` 调用补齐 `duration`
 
-**文件**：`packages/opencode/src/trace/trace.ts`
+#### 0.2 OpenSpec 基础能力补全
 
-把内存 `Ref.make<TraceEvent[]>([])` 替换为 SQLite 读写。`emit` 插入，`getTraces` 按 `session_id` 查询并按时间排序。
+**文件**：`packages/opencode/src/openspec/spec.ts`
 
-#### 3.3 补齐 trace emit 的 duration
+**改动**：
+- 实现 `ast` verification 类型
+- target 格式：`file:pattern`
+- 读取文件内容，检查 pattern 是否存在
+
+#### 0.3 Cardinal 上下文补齐
 
 **文件**：`packages/opencode/src/session/processor.ts`
 
-当前 `tool-call` 时 emit pending 状态，没有 duration。改造为：
+**改动**：
+- 新增 `buildCardinalContext`
+- 传入完整字段：taskId、taskTitle、diff、changedFiles、estimatedFiles、consecutiveFailures、alignmentAlerts、tokensUsed、totalBudget
 
-- `tool-call`：emit `pending`（duration 为 undefined）。
-- `tool-result` / `tool-error`：emit `success` / `failed`，并计算 duration。
+#### 0.4 统一事件 Schema
 
-#### 3.4 TUI TracePanel 读数据库
+**文件**：
+- `packages/opencode/src/session/cardinal.ts`
+- `packages/opencode/src/observability/alignment-guard.ts`
+- `packages/opencode/src/trace/trace.ts`
+- `packages/opencode/src/openspec/hook.ts`
 
-**文件**：`packages/opencode/src/cli/cmd/tui/component/panel-trace.tsx`
-
-从 Trace service 查询历史事件，支持按 session 展示和刷新。
-
-#### 3.5 测试
-
-**新增**：`packages/opencode/test/trace/persistence.test.ts`
-
-- emit 事件 → dispose runtime → 新 runtime 仍能读到。
+**改动**：
+- 统一 `TraceEvent`、`CardinalDecision`、`SpecCheckResult` 的数据结构
+- 确保所有事件都有 `sessionID`、`timestamp`、`metadata`
 
 #### 验收标准
-- [ ] TraceEvent 表和 migration 存在。
-- [ ] Trace 数据写入 SQLite。
-- [ ] 所有 trace emit 带 duration。
-- [ ] TUI TracePanel 展示历史 trace。
-- [ ] Evolution 基于持久化 trace 导出 DPO pairs。
-- [ ] 新增持久化测试通过。
-- [ ] `bun typecheck` 通过。
+- [ ] Trace 数据写入 SQLite，进程重启不丢失
+- [ ] `ast` verification 可用
+- [ ] Cardinal 调用时 5 个字段全部传齐
+- [ ] `bun typecheck` 通过
 
 ---
 
-### Phase 4：Goal Judge 模型落地（2 周）
+### Phase 1：多智能体 Spec 生成 MVP（3 周）
 
-**目标**：把 Goal 从轮数计数器升级为真正的完成度 judge。
+**目标**：实现 req → accept → merge → review 的最小闭环。
 
-#### 4.1 暴露 `/goal` 设置入口
+#### 1.1 专业 Agent 设计
 
-**文件**：`packages/opencode/src/session/prompt.ts`、命令注册、TUI
+#### 1.1.1 req-agent：需求解构
 
-- CLI 支持 `/goal <condition>` 调用 `goal.set()`。
-- HTTP API 支持设置 goal。
-- TUI GoalIndicator 可展示和设置目标。
-
-#### 4.2 实现 judge 模型调用
-
-**新增**：`packages/opencode/src/session/goal-judge.ts`
-
+**输入**：
 ```ts
-export interface Verdict {
-  ok: boolean
-  impossible: boolean
-  reason: string
+interface ReqAgentInput {
+  userPrompt: string
+  sessionHistory: string[]
+  projectMemory?: string
 }
-
-export const judgeGoalCompletion = Effect.fn("Goal.judgeGoalCompletion")(...)
 ```
 
-输入：session 近期 messages、变更文件、测试结果。
-输出：`{ ok, impossible, reason }`。
+**输出**：
+```ts
+interface ReqAgentOutput {
+  coreGoal: string
+  requirementDrafts: RequirementDraft[]
+  constraints: string[]
+  assumptions: string[]
+  openQuestions: string[]
+  domain: string
+}
 
-#### 4.3 接入 runLoop
+interface RequirementDraft {
+  id: string
+  title: string
+  description: string
+  type: "functional" | "non-functional" | "security" | "performance" | "ux" | "compatibility"
+  priority: "must" | "should" | "nice-to-have"
+  dependencies: string[]
+}
+```
 
-**文件**：`packages/opencode/src/session/prompt.ts`
+**Prompt 核心**：
+```markdown
+You are a requirements analyst. Decompose the user's request into clear, structured requirements.
 
-替换当前的 `bumpReact >= 12` 逻辑：
+Rules:
+- Identify the core goal in one sentence.
+- Break down into atomic, independently verifiable requirements.
+- Mark each requirement as functional/non-functional/security/performance/ux/compatibility.
+- Assign priority: must / should / nice-to-have.
+- List assumptions and open questions.
 
-- `ok`：清空 goal，结束 runLoop。
-- `impossible`：清空 goal，结束 runLoop，输出原因。
-- 其他：把 `reason` 注入上下文，继续执行。
+Output strictly as JSON matching the ReqAgentOutput schema.
+```
 
-#### 4.4 配置 judge 模型
+**文件**：`packages/opencode/src/spec-generation/req-agent.ts`
 
-在 `opencode.json` 支持：
+---
 
-```json
-{
-  "judge": {
-    "model": "kimi-for-coding/k2p7",
-    "maxTokens": 4096
+#### 1.1.2 arch-agent：架构分析
+
+**输入**：
+```ts
+interface ArchAgentInput {
+  coreGoal: string
+  requirementDrafts: RequirementDraft[]
+  projectContext: {
+    rootPath: string
+    relevantFiles: string[]
+    packageJson?: object
+    memory?: string
   }
 }
 ```
 
-#### 4.5 测试
+**输出**：
+```ts
+interface ArchAgentOutput {
+  projectType: string
+  techStack: string[]
+  filesToModify: FileChange[]
+  filesToCreate: FileChange[]
+  modulesToReuse: ReuseModule[]
+  interfaces: InterfaceContract[]
+  dataFlow: string[]
+  risks: Risk[]
+  conventions: string[]
+}
+```
 
-**新增**：`packages/opencode/test/session/goal-judge.test.ts`
+**Prompt 核心**：
+```markdown
+You are a software architect. Analyze the project context and determine how to implement the requirements.
 
-- mock judge 返回 ok → runLoop 结束。
-- mock judge 返回 impossible → runLoop 结束并输出原因。
-- mock judge 返回继续 → 上下文包含 reason。
+Rules:
+- Only propose changes to files that exist.
+- Reuse existing modules and conventions.
+- Define clear interface contracts.
+- Identify risks and mitigations.
 
-#### 验收标准
-- [ ] `/goal` 可设置目标。
-- [ ] judge 模型实际被调用。
-- [ ] ok / impossible / 继续 三种分支正确。
-- [ ] judge 模型可配置。
-- [ ] 新增 2 个测试通过。
-- [ ] `bun typecheck` 通过。
+Output strictly as JSON matching the ArchAgentOutput schema.
+```
+
+**文件**：`packages/opencode/src/spec-generation/arch-agent.ts`
 
 ---
 
-### Phase 5：端到端质量验收测试体系（2 周）
+#### 1.1.3 accept-agent：验收设计
 
-**目标**：建立可自动验证的质量门禁场景测试。
+**输入**：
+```ts
+interface AcceptAgentInput {
+  requirementDrafts: RequirementDraft[]
+  architectureContext: ArchAgentOutput
+}
+```
 
-#### 5.1 测试夹具
+**输出**：
+```ts
+interface AcceptAgentOutput {
+  criteria: AcceptanceCriterion[]
+  unverifiableRequirements: {
+    requirementId: string
+    reason: string
+    suggestedAction: "manual" | "clarify" | "decompose"
+  }[]
+}
 
-**新增**：`packages/opencode/test/e2e/quality-gates/fixture.ts`
+interface AcceptanceCriterion {
+  requirementId: string
+  description: string
+  verification: Verification
+  fallback?: Verification
+  confidence: "high" | "medium" | "low"
+  explanation: string
+}
 
-封装：
-- 创建临时项目（可带 spec、初始代码）。
-- mock LLM server 驱动 agent。
-- 运行任务。
-- 验证最终文件系统状态和 trace 事件。
+type Verification =
+  | { type: "test"; target: string }
+  | { type: "script"; target: string }
+  | { type: "ast"; target: string }
+  | { type: "grep"; target: string }
+  | { type: "manual"; target: string }
+```
 
-#### 5.2 场景测试
+**Prompt 核心**：
+```markdown
+You are a QA engineer. For each requirement, design an executable verification method.
 
-**新增目录**：`packages/opencode/test/e2e/quality-gates/`
+Rules:
+- Prefer automated verification: test > script > ast > grep > manual.
+- Each verification target must be runnable in this project.
+- If not automatically verifiable, mark manual and explain why.
+- Rate confidence.
+
+Output strictly as JSON matching the AcceptAgentOutput schema.
+```
+
+**文件**：`packages/opencode/src/spec-generation/accept-agent.ts`
+
+---
+
+#### 1.1.4 test-agent：验证预演
+
+**输入**：
+```ts
+interface TestAgentInput {
+  criteria: AcceptanceCriterion[]
+  projectRoot: string
+}
+```
+
+**输出**：
+```ts
+interface TestAgentOutput {
+  results: {
+    requirementId: string
+    verification: Verification
+    runnable: boolean
+    actualOutput?: string
+    error?: string
+    suggestion?: string
+  }[]
+}
+```
+
+**职责**：
+- 实际执行每个 verification target
+- 不可运行的 verification 给出修正建议
+- 对 `test` 类型检查测试文件是否存在
+- 对 `ast` 类型检查文件路径和 pattern
+
+**文件**：`packages/opencode/src/spec-generation/test-agent.ts`
+
+---
+
+#### 1.1.5 merge-agent：规格整合
+
+**输入**：req-agent + arch-agent + accept-agent + test-agent 输出
+
+**输出**：符合 OpenSpec 格式的 markdown 字符串
+
+**Prompt 核心**：
+```markdown
+You are a technical writer. Combine requirements, architecture context, and acceptance criteria into a single OpenSpec markdown document.
+
+Format:
+- # Title
+- ## Overview
+- ## Requirements with ### Requirement N: Title
+- Each requirement includes description, **Status**: pending, **Verification**: type `target`
+
+Output the markdown directly.
+```
+
+**文件**：`packages/opencode/src/spec-generation/merge-agent.ts`
+
+---
+
+#### 1.1.6 review-agent：质量评审
+
+**输入**：
+```ts
+interface ReviewAgentInput {
+  specMarkdown: string
+  config: SpecReviewConfig
+}
+```
+
+**输出**：
+```ts
+interface ReviewReport {
+  score: number
+  verdict: "approve" | "revise" | "reject"
+  issues: ReviewIssue[]
+  strengths: string[]
+  summary: string
+}
+
+interface ReviewIssue {
+  category: "completeness" | "verifiability" | "clarity" | "security" | "performance" | "architecture" | "consistency" | "maintainability"
+  severity: "blocker" | "warning" | "suggestion"
+  requirementId?: string
+  description: string
+  fixSuggestion: string
+}
+```
+
+**评审维度**：
+- 完整性
+- 可验证性
+- 清晰性
+- 安全性
+- 性能
+- 架构一致性
+- 一致性
+- 可维护性
+
+**文件**：`packages/opencode/src/spec-generation/review-agent.ts`
+
+---
+
+#### 1.1.7 fix-agent：修复迭代
+
+**输入**：spec markdown + review issues
+
+**输出**：修正后的 spec markdown
+
+**职责**：
+- 按 severity 排序修复
+- 修复后返回 review-agent 重新评审
+- 最多迭代 N 次
+
+**文件**：`packages/opencode/src/spec-generation/fix-agent.ts`
+
+---
+
+#### 1.2 顶层编排
+
+**文件**：`packages/opencode/src/spec-generation/pipeline.ts`
+
+```ts
+export const generateSpec = Effect.fn("SpecGeneration.generateSpec")(function* (input: PipelineInput) {
+  const reqOutput = yield* reqAgent.run(input)
+  const archOutput = yield* archAgent.run({ reqOutput, projectContext: input.projectContext })
+  const acceptOutput = yield* acceptAgent.run({ reqOutput, archOutput })
+  const testOutput = yield* testAgent.run({ criteria: acceptOutput.criteria, projectRoot: input.projectRoot })
+  
+  // 根据 test-agent 结果修正 criteria
+  const verifiedCriteria = yield* fixUnrunnableCriteria(acceptOutput.criteria, testOutput)
+  
+  const specMarkdown = yield* mergeAgent.run({ reqOutput, archOutput, criteria: verifiedCriteria })
+  
+  let report = yield* reviewAgent.review({ specMarkdown, config: input.config })
+  let finalSpec = specMarkdown
+  
+  for (let i = 0; i < input.maxFixIterations && report.verdict === "revise"; i++) {
+    finalSpec = yield* fixAgent.fix({ specMarkdown: finalSpec, issues: report.issues })
+    report = yield* reviewAgent.review({ specMarkdown: finalSpec, config: input.config })
+  }
+  
+  return { specMarkdown: finalSpec, report }
+})
+```
+
+#### 1.3 用户交互
+
+**CLI 命令**：
+```bash
+mimo /spec generate "给登录增加短信验证码"
+mimo /spec generate --strict high "给登录增加短信验证码"
+mimo /spec generate --from requirements.md
+mimo /spec review openspec/specs/sms-login.md
+mimo /spec fix openspec/specs/sms-login.md
+```
+
+**TUI**：
+- 新增 `panel-spec-generation.tsx`
+- 显示当前步骤、review score、issues
+- 支持用户编辑和确认
+
+#### 验收标准
+- [ ] 7 个专业 agent 实现并通过单元测试
+- [ ] `/spec generate` 命令可用
+- [ ] 生成的 spec 符合 OpenSpec 格式
+- [ ] review score ≥ 70 才能进入用户确认
+- [ ] 用户确认后可写入 `openspec/specs/`
+- [ ] `bun typecheck` 通过
+
+---
+
+### Phase 2：Spec 生成与执行链路打通（2 周）
+
+**目标**：生成的 spec 能自动进入执行和验收流程。
+
+#### 2.1 自动设置 Goal
+
+**文件**：`packages/opencode/src/session/prompt.ts`
+
+**改动**：
+- 用户确认 spec 后，自动调用 `goal.set(sessionID, spec.coreGoal)`
+- 把 spec 的 overview 也注入到 system context
+
+#### 2.2 自动注册 Cardinal 规则
+
+**文件**：`packages/opencode/src/session/cardinal.ts`
+
+**改动**：
+- 新增 `createSpecDerivedRules(spec: SpecDoc): CardinalRule[]`
+- 从 spec 中提取 security / performance / compatibility 类型的 requirement
+- 转换为 Cardinal 规则
+
+#### 2.3 OpenSpecHook 读取生成 Spec
+
+**文件**：`packages/opencode/src/session/processor.ts`
+
+**改动**：
+- 执行中 `tool-result` 后自动运行相关 verification
+- 失败时把缺失要求返回给模型
+
+#### 2.4 执行后自动生成验收报告
+
+**文件**：`packages/opencode/src/openspec/report.ts`（新建）
+
+**输出**：
+```ts
+interface SpecReport {
+  specPath: string
+  overallApproved: boolean
+  requirementResults: {
+    requirementId: string
+    approved: boolean
+    verification: Verification
+    output?: string
+    error?: string
+  }[]
+  missingRequirements: string[]
+}
+```
+
+#### 验收标准
+- [ ] 确认 spec 后自动设置 goal
+- [ ] Cardinal 能从 spec 提取规则
+- [ ] OpenSpecHook 按生成 spec 持续验证
+- [ ] 执行后自动生成验收报告
+- [ ] `bun typecheck` 通过
+
+---
+
+### Phase 3：执行前验收层（2 周）
+
+**目标**：在执行大量修改前先做预检。
+
+#### 3.1 Goal Judge 预检
+
+**文件**：`packages/opencode/src/session/goal-judge.ts`（新建）
+
+**输入**：session 历史 + spec coreGoal
+
+**输出**：
+```ts
+interface Verdict {
+  ok: boolean
+  impossible: boolean
+  reason: string
+  missingContext?: string[]
+}
+```
+
+**行为**：
+- `ok`：继续执行
+- `impossible`：结束并解释原因
+- 其他：把 reason 注入上下文，继续
+
+#### 3.2 Cardinal 预检
+
+**文件**：`packages/opencode/src/session/prompt.ts`
+
+**改动**：
+- 在 runLoop 开始前，基于计划修改文件列表做风险评估
+- 高风险操作需要用户确认
+
+#### 3.3 OpenSpec Pre-check
+
+**文件**：`packages/opencode/src/session/prompt.ts`
+
+**改动**：
+- 执行前扫描计划修改的文件是否命中 spec
+- 提前提示可能的违规
+
+#### 3.4 预检报告展示
+
+**TUI / CLI**：
+- 显示 Goal Judge 判断
+- 显示 Cardinal 风险等级
+- 显示 OpenSpec 预检结果
+
+#### 验收标准
+- [ ] Goal Judge 预检实际被调用
+- [ ] Cardinal 预检能识别高风险操作
+- [ ] OpenSpec Pre-check 能提前发现违规
+- [ ] 预检报告可展示
+- [ ] `bun typecheck` 通过
+
+---
+
+### Phase 4：完整执行中监控（2 周）
+
+**目标**：v1.0 Phase 1-3 的完整落地。
+
+#### 4.1 Cardinal 全部规则生效
+
+**文件**：`packages/opencode/src/session/cardinal.ts`、`processor.ts`
+
+**规则**：
+- `security`：eval、Function、child_process、rm -rf、SQL 注入、密钥泄露
+- `excessive_changes`：改动文件数超过预期 2 倍
+- `consecutiveFailures`：连续失败 ≥3 次
+- `alignment`：alignmentAlerts ≥3
+- `token_limit`：token 超过预算 20%
+
+#### 4.2 OpenSpec 失败反馈给模型
+
+**文件**：`packages/opencode/src/session/processor.ts`
+
+**改动**：
+- `!result.allApproved` 时，向 session 插入 text part
+- 列出缺失要求，要求模型修正
+
+#### 4.3 AlignmentGuard 全部启用
+
+**文件**：`packages/opencode/src/session/prompt.ts`
+
+**改动**：
+- `detectRabbitHole`：实时检测
+- `detectDistraction`：检测无关命令
+- `detectFileDrift`：检测文件偏离目标
+- 异常次数累积到 `ctx.alignmentAlertCount`
+
+#### 4.4 Trace 全程记录
+
+**文件**：`packages/opencode/src/session/processor.ts`、`prompt.ts`
+
+**改动**：
+- 每个 tool call / result / error 记录 trace
+- 每个 Cardinal 决策记录 trace
+- 每个 OpenSpec 验证结果记录 trace
+- 每个 Goal Judge 判定记录 trace
+
+#### 验收标准
+- [ ] Cardinal 5 条规则全部可触发
+- [ ] OpenSpec 失败反馈给模型
+- [ ] AlignmentGuard 3 个检测函数全部启用
+- [ ] Trace 记录所有关键事件
+- [ ] `bun typecheck` 通过
+
+---
+
+### Phase 5：执行后验收与判定（2 周）
+
+**目标**：任务结束时有完整的验收报告。
+
+#### 5.1 OpenSpec 最终验证
+
+**文件**：`packages/opencode/src/openspec/report.ts`
+
+**改动**：
+- 运行所有 spec verification
+- 生成 SpecReport
+
+#### 5.2 自动化测试运行
+
+**文件**：`packages/opencode/src/session/prompt.ts`
+
+**改动**：
+- 任务结束后自动运行：
+  - `bun typecheck`
+  - spec 中定义的 tests
+  - 项目默认 lint/test 命令
+
+#### 5.3 Goal Judge 最终判定
+
+**文件**：`packages/opencode/src/session/goal-judge.ts`
+
+**输入**：session 完整历史 + 变更文件 + 测试结果 + spec 达成度
+
+**输出**：
+```ts
+interface FinalVerdict {
+  status: "completed" | "partial" | "failed"
+  reason: string
+  achievedRequirements: string[]
+  missingRequirements: string[]
+}
+```
+
+#### 5.4 AST 影响分析
+
+**文件**：`packages/opencode/src/ast/ast.ts`
+
+**改动**：
+- 分析变更是否破坏公共 API
+- 分析是否删除被依赖的导出
+- 分析是否引入循环依赖
+- 分析是否产生未使用代码
+
+#### 验收标准
+- [ ] OpenSpec 最终验证报告可用
+- [ ] 自动化测试运行集成
+- [ ] Goal Judge 最终判定可用
+- [ ] AST 影响分析输出报告
+- [ ] `bun typecheck` 通过
+
+---
+
+### Phase 6：端到端质量测试体系（2 周）
+
+**目标**：自动化验证整个闭环。
+
+#### 6.1 测试夹具
+
+**文件**：`packages/opencode/test/e2e/quality-gates/fixture.ts`
+
+**能力**：
+- 创建临时项目
+- 写入初始文件和 spec
+- mock LLM server 驱动 agent
+- 运行任务
+- 验证最终状态
+
+#### 6.2 场景测试
+
+**目录**：`packages/opencode/test/e2e/quality-gates/`
 
 | 文件 | 场景 | 验证 |
 |------|------|------|
-| `security-block.test.ts` | 要求写入 `eval(...)` | Cardinal 阻断，最终文件无 eval |
+| `spec-generation.test.ts` | 用户输入需求 → 生成可验证 spec | spec 有 verification 且可执行 |
+| `security-block.test.ts` | 要求写入 `eval(...)` | Cardinal 阻断，文件无 eval |
+| `spec-compliance.test.ts` | 带 OpenSpec 的功能开发 | 不合规时模型收到反馈并修正 |
 | `excessive-changes.test.ts` | 小需求改多文件 | Cardinal pause 触发 |
 | `consecutive-failures.test.ts` | 同一命令反复失败 | Cardinal pause 触发 |
-| `spec-compliance.test.ts` | 带 OpenSpec 的功能开发 | 不合规时模型收到反馈并修正 |
 | `file-drift.test.ts` | agent 改无关文件 | AlignmentGuard 检测并反馈 |
-| `goal-completion.test.ts` | 明确目标的任务 | Goal judge 判定 ok 结束 |
+| `goal-completion.test.ts` | 明确目标的任务 | Goal Judge 判定 completed |
 
-#### 5.3 CI 集成
+#### 6.3 CI 集成
 
 在 `packages/opencode/package.json` 增加：
 
@@ -363,129 +766,191 @@ export const judgeGoalCompletion = Effect.fn("Goal.judgeGoalCompletion")(...)
 ```
 
 #### 验收标准
-- [ ] 至少 6 个质量验收场景测试。
-- [ ] 测试在 CI 稳定通过。
-- [ ] 新增代码破坏质量门禁时测试失败。
-- [ ] `bun typecheck` 通过。
+- [ ] 7+ 个质量验收场景测试
+- [ ] 测试在 CI 稳定通过
+- [ ] 新增代码破坏质量门禁时测试失败
+- [ ] `bun typecheck` 通过
 
 ---
 
-### Phase 6：AST 语义升级（可选，3-4 周）
+### Phase 7：Spec 库与持续改进（2 周）
 
-**目标**：用真实 AST parser 替代正则解析，提供准确的依赖影响分析。
+**目标**：把 spec 和 trace 变成可复用的组织资产。
 
-#### 6.1 接入真实 parser
+#### 7.1 Spec 库
 
-推荐 oxc，已有相关生态。替代 `ast.ts` 中的正则 import 提取。
+**文件**：`packages/opencode/src/spec-library.ts`（新建）
 
-#### 6.2 语义依赖图
+**能力**：
+- 按 domain / feature 分类
+- 全文搜索
+- 相似度匹配
+- 版本历史
 
-实现 `buildDependencyGraphWithOxc`：
-- 准确识别 import/export
-- 识别函数、类、导出项
-- 建立 file -> dependents 图
+**表结构**：
+```sql
+CREATE TABLE spec_library (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  domain TEXT,
+  file_path TEXT NOT NULL,
+  content TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
 
-#### 6.3 语义变化检测
+#### 7.2 Trace 查询界面
 
-- 公共函数签名变化 → 找出调用方。
-- 导出删除 → 找出 importer。
-- 新增未使用代码 → warn。
+**TUI**：
+- `panel-trace.tsx` 支持按 session、时间、类型筛选
+- 支持导出 JSON/文本
 
-#### 6.4 反馈给 Cardinal
+**HTTP API**：
+- `GET /api/sessions/:id/traces`
 
-把 AST 分析结果作为 Cardinal 输入，例如：
-- 修改公共 API 但没改测试 → pause。
-- 删除被依赖的导出 → block。
+#### 7.3 Evolution 自动导出
+
+**文件**：`packages/opencode/src/evolution/evolution.ts`
+
+**改动**：
+- 基于持久化 trace 导出 DPO pairs
+- 只导出验收通过为正例、验收失败为负例
+
+#### 7.4 相似需求推荐
+
+**文件**：`packages/opencode/src/spec-generation/req-agent.ts`
+
+**改动**：
+- 新需求输入时，从 Spec 库搜索相似 spec
+- 把相似 spec 作为上下文提供给 req-agent
 
 #### 验收标准
-- [ ] AST 用真实 parser。
-- [ ] 能检测函数签名变化和导出删除。
-- [ ] AST 结果可反馈给 Cardinal。
-- [ ] 新增 3 个测试通过。
-- [ ] `bun typecheck` 通过。
+- [ ] Spec 库可存储和搜索
+- [ ] Trace 可查询和导出
+- [ ] Evolution 自动导出训练数据
+- [ ] 新需求能推荐相似 spec
+- [ ] `bun typecheck` 通过
 
 ---
 
-## 四、阶段依赖与推荐执行顺序
+### Phase 8：AST 语义升级（3-4 周，可选）
+
+**目标**：用真实 AST parser 替代正则，提供准确影响分析。
+
+#### 8.1 接入真实 Parser
+
+推荐 oxc 或 TypeScript compiler API。
+
+#### 8.2 语义依赖图
+
+实现 `buildDependencyGraphWithAst`：
+- 准确识别 import/export
+- 识别函数、类、导出项
+- 建立 file → dependents 图
+
+#### 8.3 语义变化检测
+
+- 公共函数签名变化 → 找出调用方
+- 导出删除 → 找出 importer
+- 新增未使用代码 → warn
+
+#### 8.4 与 Cardinal 联动
+
+把 AST 分析结果作为 Cardinal 输入：
+- 修改公共 API 但没改测试 → pause
+- 删除被依赖的导出 → block
+
+#### 验收标准
+- [ ] AST 用真实 parser
+- [ ] 能检测函数签名变化和导出删除
+- [ ] AST 结果可反馈给 Cardinal
+- [ ] 新增 3 个测试通过
+- [ ] `bun typecheck` 通过
+
+---
+
+## 六、时间线
 
 ```
-Phase 1 (Cardinal) ─┐
-                    ├──→ Phase 2 (OpenSpec) ──→ Phase 4 (Goal Judge)
-Phase 3 (Trace) ────┘              │
-                                   ↓
-                         Phase 5 (质量验收测试)
-                                   │
-                                   ↓
-                         Phase 6 (AST 语义升级，可选)
+Month 1:  Phase 0 基础设施
+          Phase 1 Spec 生成 MVP
+
+Month 2:  Phase 2 Spec-执行打通
+          Phase 3 执行前验收
+          Phase 4 执行中监控
+
+Month 3:  Phase 5 执行后验收
+          Phase 6 端到端测试
+          Phase 7 Spec 库与持续改进
+
+Month 4:  Phase 8 AST 语义升级（可选）
+          整体调优与收尾
 ```
 
-**推荐启动顺序**：
-
-1. **Phase 1 + Phase 3 并行启动**。
-   - Cardinal 解决最高频的安全/异常问题。
-   - Trace 是其他阶段的基础设施。
-2. **Phase 2** 补齐 spec 驱动开发闭环。
-3. **Phase 4** 让目标驱动判定落地。
-4. **Phase 5** 固化验收能力。
-5. **Phase 6** 视资源决定是否投入。
+总计：**4 个月核心闭环 + 1 个月可选升级**。
 
 ---
 
-## 五、各阶段解决的核心问题对照
+## 七、关键设计原则
 
-| 阶段 | 解决的核心问题 |
-|------|---------------|
-| Phase 1 | 危险操作无法被实时阻断；异常执行状态无法感知 |
-| Phase 2 | agent 不按 spec 交付；代码污染无法回环修正 |
-| Phase 3 | 执行过程不可追溯；无法复盘和持续改进 |
-| Phase 4 | 任务完成度无法判定；容易提前结束或无限循环 |
-| Phase 5 | 质量保障能力缺乏自动化验证；回归风险高 |
-| Phase 6 | 变更影响分析不准确；容易误改依赖 |
+1. **Spec 是质量保障的核心资产**  
+   一切验收、监控、判定都围绕 spec 展开。
 
----
+2. **多智能体协作优于单智能体**  
+   专业 agent 各司其职，review agent 兜底。
 
-## 六、不能解决的问题（需管理预期）
+3. **可验证性优先**  
+   每个需求必须有可执行的 verification，manual 类型要最小化。
 
-即使完成以上阶段，以下问题仍需要持续投入：
+4. **人在关键节点确认**  
+   Spec 生成后、高风险操作前、最终交付前，都需要人工确认。
 
-1. **LLM 本身的幻觉和理解偏差**：只能更早发现，无法根除。
-2. **业务语义正确性**：spec 能验证结构，但无法验证业务逻辑是否真正满足用户真实意图。
-3. **spec/verification 写得不全**：agent 可能绕过不完整的验收条件。
-4. **大规模多 agent 协作一致性**：Team/Workflow 当前仍偏浅，需要额外设计。
+5. **全过程可追溯**  
+   从需求输入到最终验收，每个决策都记录在 Trace 中。
+
+6. **持续积累组织知识**  
+   Spec 库、Trace 库、Evolution 数据是长期资产。
 
 ---
 
-## 七、关键风险与应对
+## 八、风险与应对
 
 | 风险 | 应对 |
 |------|------|
-| Cardinal 误报导致正常操作被阻断 | 先做 warn 模式灰度，确认误报率后再启用 block |
-| OpenSpec 增加每次 tool 调用延迟 | 异步执行 + 缓存 spec 解析结果 |
-| Trace 数据库写入量过大 | 采样率配置 + 自动清理旧 trace |
-| Goal Judge 增加 token 成本 | 支持配置 cheap model，默认关闭 |
-| 端到端测试不稳定 | 用 mock LLM server，避免真实模型抖动 |
+| Spec 生成消耗大量 token | 先用 cheap model 跑 MVP；review/fix 用好模型 |
+| Spec 生成速度慢 | accept/test-agent 依赖 arch-agent，必须串行；其他可并行 |
+| 用户不信任机器生成的 spec | 强制人工确认；展示生成 reasoning |
+| verification 不可执行 | test-agent 预演；不可行的降级为 manual |
+| Cardinal 误报 | 先 warn 模式灰度，再启用 block |
+| 多 agent 协作失败 | 每个 agent 输出严格 schema；失败时回退到单 agent |
+| Spec 库膨胀 | 定期归档；相似 spec 合并 |
 
 ---
 
-## 八、验收总纲
+## 九、成功标准
 
-全部阶段完成后，HelixAgent 应具备以下能力：
+5 个月后，HelixAgent 应达到：
 
-- [ ] 写入危险代码时被阻断或要求确认。
-- [ ] 偏离 spec 时模型收到反馈并修正。
-- [ ] 关键执行事件持久化，可跨进程查询。
-- [ ] 目标完成度由 judge 模型判定。
-- [ ] 有 6+ 个端到端场景测试持续验证。
-- [ ] 所有新增代码 `bun typecheck` 通过。
+- [ ] 用户输入需求后，系统自动生成可验证 spec，人工确认后执行。
+- [ ] 执行前有风险预检，高风险操作需要确认。
+- [ ] 执行中 Cardinal / OpenSpec / AlignmentGuard 实时生效。
+- [ ] 执行后有完整验收报告（spec 达成度 + 测试结果 + goal 判定）。
+- [ ] 所有关键事件持久化，可跨 session 查询和复盘。
+- [ ] 有 7+ 个端到端场景测试保障质量闭环。
+- [ ] Spec 库和 Trace 库开始积累组织知识。
+- [ ] `bun typecheck` 和核心测试持续通过。
 
 ---
 
-## 九、下一步建议
+## 十、下一步行动
 
-1. 团队确认本规划优先级。
-2. 指定 Phase 1 和 Phase 3 的负责人，立即启动。
-3. 为每个阶段创建独立分支（按 `AGENTS.md` 命名规范）。
-4. 每阶段完成后跑一次 `test:quality-gates`（Phase 5 完成后）。
+1. 团队评审本规划，确认优先级和资源分配。
+2. 立即启动 Phase 0：Trace 持久化 + Cardinal 上下文补齐 + OpenSpec ast verification。
+3. 为每个 Phase 创建独立分支，按 `AGENTS.md` 规范命名。
+4. 每 Phase 完成后跑 `bun typecheck` 和相关测试。
+5. Phase 1 完成后做一次内部 demo，验证 spec 生成 MVP。
 
 ---
 
