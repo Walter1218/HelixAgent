@@ -177,6 +177,8 @@ import type {
   QuestionV2Reply,
   SessionAbortErrors,
   SessionAbortResponses,
+  SessionActorErrors,
+  SessionActorResponses,
   SessionChildrenErrors,
   SessionChildrenResponses,
   SessionCommandErrors,
@@ -193,6 +195,8 @@ import type {
   SessionForkResponses,
   SessionGetErrors,
   SessionGetResponses,
+  SessionGoalErrors,
+  SessionGoalResponses,
   SessionInitErrors,
   SessionInitResponses,
   SessionListErrors,
@@ -201,6 +205,8 @@ import type {
   SessionMessageResponses,
   SessionMessagesErrors,
   SessionMessagesResponses,
+  SessionMetricsErrors,
+  SessionMetricsResponses,
   SessionPromptAsyncErrors,
   SessionPromptAsyncResponses,
   SessionPromptErrors,
@@ -215,8 +221,12 @@ import type {
   SessionStatusResponses,
   SessionSummarizeErrors,
   SessionSummarizeResponses,
+  SessionTaskErrors,
+  SessionTaskResponses,
   SessionTodoErrors,
   SessionTodoResponses,
+  SessionTokenErrors,
+  SessionTokenResponses,
   SessionUnrevertErrors,
   SessionUnrevertResponses,
   SessionUnshareErrors,
@@ -4321,6 +4331,166 @@ export class Session2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<SessionUnrevertResponses, SessionUnrevertErrors, ThrowOnError>({
       url: "/session/{sessionID}/unrevert",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session goal
+   *
+   * Retrieve the current goal for a session.
+   */
+  public goal<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionGoalResponses, SessionGoalErrors, ThrowOnError>({
+      url: "/session/{sessionID}/goal",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session tasks
+   *
+   * Retrieve all tasks associated with a session.
+   */
+  public task<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionTaskResponses, SessionTaskErrors, ThrowOnError>({
+      url: "/session/{sessionID}/task",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session actors
+   *
+   * Retrieve all actors (subagents) associated with a session.
+   */
+  public actor<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionActorResponses, SessionActorErrors, ThrowOnError>({
+      url: "/session/{sessionID}/actor",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session metrics
+   *
+   * Retrieve metrics summary for a session.
+   */
+  public metrics<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMetricsResponses, SessionMetricsErrors, ThrowOnError>({
+      url: "/session/{sessionID}/metrics",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session token stats
+   *
+   * Retrieve token usage statistics for a session.
+   */
+  public token<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionTokenResponses, SessionTokenErrors, ThrowOnError>({
+      url: "/session/{sessionID}/token",
       ...options,
       ...params,
     })

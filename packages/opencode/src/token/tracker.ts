@@ -61,10 +61,21 @@ export function formatTokens(tokens: number): string {
 import { Effect, Ref, Context, Layer } from "effect"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 
+export interface SessionTokenStats {
+  sessionID: string
+  totalInput: number
+  totalOutput: number
+  totalTokens: number
+  byModel: Record<string, number>
+  byPurpose: Record<string, number>
+}
+
 export interface Interface {
   readonly recordUsage: (usage: TokenUsage) => Effect.Effect<void>
   readonly getDailyBudget: () => Effect.Effect<DailyBudget>
   readonly canAfford: (tokens: number) => Effect.Effect<boolean>
+  readonly getSessionUsage: (sessionID: string) => Effect.Effect<TokenUsage[]>
+  readonly getSessionStats: (sessionID: string) => Effect.Effect<SessionTokenStats>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/TokenTracker") {}
@@ -102,7 +113,39 @@ export const layer = Layer.effect(
       return budget.remaining >= tokens
     })
 
-    return Service.of({ recordUsage, getDailyBudget, canAfford })
+    const getSessionUsage = Effect.fn("TokenTracker.getSessionUsage")(function* (sessionID: string) {
+      const all = yield* Ref.get(usage)
+      return all.filter((u) => u.session_id === sessionID)
+    })
+
+    const getSessionStats = Effect.fn("TokenTracker.getSessionStats")(function* (sessionID: string) {
+      const sessionUsage = yield* getSessionUsage(sessionID)
+
+      const totalInput = sessionUsage.reduce((sum, u) => sum + u.input_tokens, 0)
+      const totalOutput = sessionUsage.reduce((sum, u) => sum + u.output_tokens, 0)
+
+      const byModel: Record<string, number> = {}
+      const byPurpose: Record<string, number> = {}
+
+      for (const u of sessionUsage) {
+        const tokens = u.input_tokens + u.output_tokens
+        byModel[u.model_id] = (byModel[u.model_id] ?? 0) + tokens
+        if (u.purpose) {
+          byPurpose[u.purpose] = (byPurpose[u.purpose] ?? 0) + tokens
+        }
+      }
+
+      return {
+        sessionID,
+        totalInput,
+        totalOutput,
+        totalTokens: totalInput + totalOutput,
+        byModel,
+        byPurpose,
+      }
+    })
+
+    return Service.of({ recordUsage, getDailyBudget, canAfford, getSessionUsage, getSessionStats })
   })
 )
 

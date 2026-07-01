@@ -103,6 +103,54 @@ export const {
       }
       formatter: FormatterStatus[]
       vcs: VcsInfo | undefined
+      goal: {
+        [sessionID: string]: { condition: string; react: number } | undefined
+      }
+      task: {
+        [sessionID: string]: Array<{
+          id: string
+          sessionID: string
+          title: string
+          status: string
+          priority?: string
+          createdAt: number
+          updatedAt: number
+        }>
+      }
+      actor: {
+        [sessionID: string]: Array<{
+          sessionID: string
+          actorID: string
+          mode: string
+          status: string
+          agent: string
+          description?: string
+          lastOutcome?: string
+          time: { created: number; updated: number }
+        }>
+      }
+      metrics: {
+        [sessionID: string]: {
+          sessionID: string
+          modelCalls: number
+          toolCalls: number
+          totalTokensIn: number
+          totalTokensOut: number
+          avgLatencyMs: number
+          avgTTFTMs: number
+          toolSuccessRate: number
+        }
+      }
+      token_stats: {
+        [sessionID: string]: {
+          sessionID: string
+          totalInput: number
+          totalOutput: number
+          totalTokens: number
+          byModel: Record<string, number>
+          byPurpose: Record<string, number>
+        }
+      }
     }>({
       provider_next: {
         all: [],
@@ -133,6 +181,11 @@ export const {
       mcp_resource: {},
       formatter: [],
       vcs: undefined,
+      goal: {},
+      task: {},
+      actor: {},
+      metrics: {},
+      token_stats: {},
     })
 
     const event = useEvent()
@@ -581,11 +634,16 @@ export const {
           const tracker = { messages: new Set<string>(), parts: new Set<string>() }
           hydratingSessions.set(sessionID, tracker)
           const task = (async () => {
-            const [session, messages, todo, diff] = await Promise.all([
+            const [session, messages, todo, diff, goal, tasks, actors, metrics, tokenStats] = await Promise.all([
               sdk.client.session.get({ sessionID }, { throwOnError: true }),
               sdk.client.session.messages({ sessionID, limit: 100 }),
               sdk.client.session.todo({ sessionID }),
               sdk.client.session.diff({ sessionID }),
+              sdk.client.session.goal({ sessionID }).catch(() => ({ data: undefined })),
+              sdk.client.session.task({ sessionID }).catch(() => ({ data: [] })),
+              sdk.client.session.actor({ sessionID }).catch(() => ({ data: [] })),
+              sdk.client.session.metrics({ sessionID }).catch(() => ({ data: undefined })),
+              sdk.client.session.token({ sessionID }).catch(() => ({ data: undefined })),
             ])
             setStore(
               produce((draft) => {
@@ -593,6 +651,11 @@ export const {
                 if (match.found) draft.session[match.index] = session.data!
                 if (!match.found) draft.session.splice(match.index, 0, session.data!)
                 draft.todo[sessionID] = todo.data ?? []
+                draft.goal[sessionID] = goal.data as any ?? undefined
+                draft.task[sessionID] = (tasks.data ?? []) as any
+                draft.actor[sessionID] = (actors.data ?? []) as any
+                if (metrics.data) draft.metrics[sessionID] = metrics.data as any
+                if (tokenStats.data) draft.token_stats[sessionID] = tokenStats.data as any
                 const currentMessages = draft.message[sessionID] ?? []
                 const infos = (messages.data ?? []).flatMap((message) => {
                   if (!tracker.messages.has(message.info.id)) return [message.info]

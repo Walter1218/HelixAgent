@@ -56,10 +56,24 @@ export function formatLatency(ms: number): string {
 import { Effect, Ref, Context, Layer } from "effect"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 
+export interface MetricsSummary {
+  sessionID: string
+  modelCalls: number
+  toolCalls: number
+  totalTokensIn: number
+  totalTokensOut: number
+  avgLatencyMs: number
+  avgTTFTMs: number
+  toolSuccessRate: number
+}
+
 export interface Interface {
   readonly recordModelCall: (metric: ModelCallMetric) => Effect.Effect<void>
   readonly recordToolCall: (metric: ToolCallMetric) => Effect.Effect<void>
   readonly recordAgentRequest: (metric: AgentRequestMetric) => Effect.Effect<void>
+  readonly getModelCalls: (sessionID: string) => Effect.Effect<ModelCallMetric[]>
+  readonly getToolCalls: (sessionID: string) => Effect.Effect<ToolCallMetric[]>
+  readonly getSummary: (sessionID: string) => Effect.Effect<MetricsSummary>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Metrics") {}
@@ -82,7 +96,45 @@ export const layer = Layer.effect(
       // 暂存，后续可持久化
     })
 
-    return Service.of({ recordModelCall, recordToolCall, recordAgentRequest })
+    const getModelCalls = Effect.fn("Metrics.getModelCalls")(function* (sessionID: string) {
+      const all = yield* Ref.get(modelCalls)
+      return all.filter((m) => m.sessionID === sessionID)
+    })
+
+    const getToolCalls = Effect.fn("Metrics.getToolCalls")(function* (sessionID: string) {
+      const all = yield* Ref.get(toolCalls)
+      return all.filter((m) => m.sessionID === sessionID)
+    })
+
+    const getSummary = Effect.fn("Metrics.getSummary")(function* (sessionID: string) {
+      const models = yield* getModelCalls(sessionID)
+      const tools = yield* getToolCalls(sessionID)
+
+      const totalTokensIn = models.reduce((sum, m) => sum + m.total_tokens_in, 0)
+      const totalTokensOut = models.reduce((sum, m) => sum + m.total_tokens_out, 0)
+      const avgLatencyMs = models.length > 0
+        ? models.reduce((sum, m) => sum + m.latency_ms, 0) / models.length
+        : 0
+      const avgTTFTMs = models.length > 0
+        ? models.reduce((sum, m) => sum + (m.ttft_ms ?? 0), 0) / models.filter((m) => m.ttft_ms != null).length
+        : 0
+      const toolSuccessRate = tools.length > 0
+        ? tools.filter((t) => t.tool_call_status === "success").length / tools.length
+        : 1
+
+      return {
+        sessionID,
+        modelCalls: models.length,
+        toolCalls: tools.length,
+        totalTokensIn,
+        totalTokensOut,
+        avgLatencyMs,
+        avgTTFTMs,
+        toolSuccessRate,
+      }
+    })
+
+    return Service.of({ recordModelCall, recordToolCall, recordAgentRequest, getModelCalls, getToolCalls, getSummary })
   })
 )
 

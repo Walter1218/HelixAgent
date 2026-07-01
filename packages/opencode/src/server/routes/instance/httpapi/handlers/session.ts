@@ -14,6 +14,12 @@ import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
+import { Goal } from "@/session/goal"
+import { TaskRegistry } from "@/task/registry"
+import { ActorRegistry } from "@/actor/registry"
+import { Metrics } from "@/metrics/metrics"
+import { TokenTracker } from "@/token/tracker"
+import { ModeRegistry } from "@/session/mode-registry"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
@@ -59,6 +65,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const scope = yield* Scope.Scope
+    const goalSvc = yield* Goal.Service
+    const taskRegistrySvc = yield* TaskRegistry.Service
+    const actorRegistrySvc = yield* ActorRegistry.Service
+    const metricsSvc = yield* Metrics.Service
+    const tokenTrackerSvc = yield* TokenTracker.Service
+    const modeRegistrySvc = yield* ModeRegistry.Service
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       return yield* session.list({
@@ -408,6 +420,31 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* session.updatePart(payload)
     })
 
+    const goal = Effect.fn("SessionHttpApi.goal")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* goalSvc.get(ctx.params.sessionID)
+    })
+
+    const task = Effect.fn("SessionHttpApi.task")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* taskRegistrySvc.listBySession(ctx.params.sessionID)
+    })
+
+    const actor = Effect.fn("SessionHttpApi.actor")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* actorRegistrySvc.listBySession(ctx.params.sessionID)
+    })
+
+    const metrics = Effect.fn("SessionHttpApi.metrics")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* metricsSvc.getSummary(ctx.params.sessionID)
+    })
+
+    const token = Effect.fn("SessionHttpApi.token")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* tokenTrackerSvc.getSessionStats(ctx.params.sessionID)
+    })
+
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -436,5 +473,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("deleteMessage", deleteMessage)
       .handle("deletePart", deletePart)
       .handle("updatePart", updatePart)
+      .handle("goal", goal)
+      .handle("task", task)
+      .handle("actor", actor)
+      .handle("metrics", metrics)
+      .handle("token", token)
   }),
 )

@@ -1677,6 +1677,11 @@ export type PermissionConfig =
       question?: PermissionActionConfig
       webfetch?: PermissionActionConfig
       websearch?: PermissionActionConfig
+      web_search?: PermissionActionConfig
+      memory?: PermissionActionConfig
+      history?: PermissionActionConfig
+      workflow?: PermissionActionConfig
+      screenshot?: PermissionActionConfig
       lsp?: PermissionRuleConfig
       doom_loop?: PermissionActionConfig
       skill?: PermissionRuleConfig
@@ -2021,6 +2026,23 @@ export type Config = {
     continue_loop_on_deny?: boolean
     mcp_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
+  }
+  openspec?: {
+    /**
+     * Directory containing OpenSpec markdown files (default: openspec/specs)
+     */
+    directory?: string
+    /**
+     * Automatically run spec verification before git commit
+     */
+    auto_verify_on_commit?: boolean
+  }
+  webSearch?: {
+    provider?: "mimo" | "exa" | "parallel"
+    mimo?: {
+      apiKey?: string
+      baseUrl?: string
+    }
   }
 }
 
@@ -10470,6 +10492,228 @@ export type PartUpdateResponses = {
 }
 
 export type PartUpdateResponse = PartUpdateResponses[keyof PartUpdateResponses]
+
+export type SessionGoalData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/goal"
+}
+
+export type SessionGoalErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionGoalError = SessionGoalErrors[keyof SessionGoalErrors]
+
+export type SessionGoalResponses = {
+  /**
+   * Session goal
+   */
+  200: {
+    condition: string
+    react: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type SessionGoalResponse = SessionGoalResponses[keyof SessionGoalResponses]
+
+export type SessionTaskData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/task"
+}
+
+export type SessionTaskErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTaskError = SessionTaskErrors[keyof SessionTaskErrors]
+
+export type SessionTaskResponses = {
+  /**
+   * Session tasks
+   */
+  200: Array<{
+    id: string
+    sessionID: string
+    parentID?: string
+    title: string
+    description?: string
+    status: string
+    priority?: string
+    complexity?: string
+    estimatedTokens?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    actualTokens?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    goalAlignment?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    tags?: Array<string>
+    createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    completedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    cleanupAfter?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }>
+}
+
+export type SessionTaskResponse = SessionTaskResponses[keyof SessionTaskResponses]
+
+export type SessionActorData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/actor"
+}
+
+export type SessionActorErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionActorError = SessionActorErrors[keyof SessionActorErrors]
+
+export type SessionActorResponses = {
+  /**
+   * Session actors
+   */
+  200: Array<{
+    sessionID: string
+    actorID: string
+    mode: string
+    status: string
+    agent: string
+    description?: string
+    lastOutcome?: string
+    time: {
+      created: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      updated: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }>
+}
+
+export type SessionActorResponse = SessionActorResponses[keyof SessionActorResponses]
+
+export type SessionMetricsData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/metrics"
+}
+
+export type SessionMetricsErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionMetricsError = SessionMetricsErrors[keyof SessionMetricsErrors]
+
+export type SessionMetricsResponses = {
+  /**
+   * Session metrics
+   */
+  200: {
+    sessionID: string
+    modelCalls: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    toolCalls: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    totalTokensIn: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    totalTokensOut: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    avgLatencyMs: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    avgTTFTMs: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    toolSuccessRate: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type SessionMetricsResponse = SessionMetricsResponses[keyof SessionMetricsResponses]
+
+export type SessionTokenData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/token"
+}
+
+export type SessionTokenErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionTokenError = SessionTokenErrors[keyof SessionTokenErrors]
+
+export type SessionTokenResponses = {
+  /**
+   * Session token stats
+   */
+  200: {
+    sessionID: string
+    totalInput: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    totalOutput: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    totalTokens: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    byModel: {
+      [key: string]: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+    byPurpose: {
+      [key: string]: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SessionTokenResponse = SessionTokenResponses[keyof SessionTokenResponses]
 
 export type SyncStartData = {
   body?: never

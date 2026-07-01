@@ -23,6 +23,7 @@ export interface Interface {
   readonly get: (modeId: string) => Effect.Effect<ModeHandler | undefined>
   readonly getAll: () => Effect.Effect<ModeHandler[]>
   readonly getEvolutionConfig: (modeId: string) => Effect.Effect<EvolutionConfig>
+  readonly inferMode: (agent: string | undefined) => ModeId
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/ModeRegistry") {}
@@ -90,7 +91,17 @@ export const layer = Layer.effect(
       return mode?.evolution ?? DEFAULT_EVOLUTION
     })
 
-    return Service.of({ get, getAll, getEvolutionConfig })
+    const inferMode = (agent: string | undefined): ModeId => {
+      if (!agent) return "build"
+      const normalized = agent.toLowerCase()
+      if (normalized === "plan") return "plan"
+      if (normalized === "max") return "max"
+      if (normalized === "compose") return "compose"
+      if (normalized === "ask") return "ask"
+      return "build"
+    }
+
+    return Service.of({ get, getAll, getEvolutionConfig, inferMode })
   })
 )
 

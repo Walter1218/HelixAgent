@@ -2,22 +2,43 @@
 
 > 将 HelixAgent 中已设计但未集成的死代码模块接入主链路
 > 创建日期: 2026-06-29
-> 最后更新: 2026-06-29
+> 最后更新: 2026-07-01
 > **状态: Phase 1-6 代码集成已全部完成 (src/ typecheck 零错误)**
 
 ## 执行状态
 
-| Phase | 状态 |
-|-------|------|
-| Phase 1: Trace + Metrics + TokenTracker | ✅ 已完成 |
-| Phase 2: Cardinal + AlignmentGuard + Shell Safety | ✅ 已完成 |
-| Phase 3: Goal + Actor + Task + ModeRegistry | ✅ 已完成 |
-| Phase 4: Auto-Dream + Checkpoint Writer | ✅ 已完成 |
-| Phase 5: 6个死工具注册 | ✅ 已完成 |
-| Phase 6: Evolution + Scheduler + Team + AST + Workflow | ✅ 已完成 |
+| Phase | 状态 | 说明 |
+|-------|------|------|
+| Phase 1: Trace + Metrics + TokenTracker | ✅ 已完成 | Service + Layer + 主链路调用 + **查询接口已补充** |
+| Phase 2: Cardinal + AlignmentGuard + Shell Safety | ✅ 已完成 | Service + Layer + 主链路调用 |
+| Phase 3: Goal + Actor + Task + ModeRegistry | ✅ 已完成 | Service + Layer + 主链路调用 + **inferMode 已补充** |
+| Phase 4: Auto-Dream + Checkpoint Writer | ✅ 已完成 | Service + Layer + 主链路调用 |
+| Phase 5: 6个死工具注册 | ✅ 已完成 | Tool.define + registry 注册 |
+| Phase 6: Evolution + Scheduler + Team + AST + Workflow | ⚠️ 部分完成 | Service + Layer 已注册，**主链路调用未接入** |
 
 ### 待处理
-- 30个测试文件类型错误需要修复（新 Service 的 Layer 依赖未在测试中提供）
+
+1. **Phase 6 主链路调用**：5 个服务（Evolution、Team、AST、Workflow、Scheduler）已注册但未在 processor.ts/prompt.ts 中调用
+2. **30个测试文件类型错误**：新 Service 的 Layer 依赖未在测试中提供
+3. **新增能力开发**：详见 `DEVELOPMENT_PLAN.md`（Memory Vector Store、History、Inbox、Judge+Max）
+
+### 已补充的底层 API（2026-07-01）
+
+| Service | 新增接口 | 用途 |
+|---------|---------|------|
+| Metrics | `getModelCalls(sessionID)`, `getToolCalls(sessionID)`, `getSummary(sessionID)` | TUI 外化 |
+| TokenTracker | `getSessionUsage(sessionID)`, `getSessionStats(sessionID)` | TUI 外化 |
+| ModeRegistry | `inferMode(agent)` | TUI 外化 |
+
+### 已完成的 TUI 外化（2026-07-01）
+
+| 组件 | 位置 | 数据来源 |
+|------|------|---------|
+| Token 指示器 | footer | TokenTracker.getSessionStats |
+| Mode 指示器 | footer | session.agent + ModeRegistry.inferMode |
+| Goal 指示器 | footer | Goal.get |
+| Task 面板 | sidebar | TaskRegistry.listBySession |
+| Actor 面板 | sidebar | ActorRegistry.listBySession |
 
 ---
 

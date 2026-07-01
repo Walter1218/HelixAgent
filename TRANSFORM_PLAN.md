@@ -2,6 +2,10 @@
 
 > 将 Helix (MiMo-Code) 中有价值的能力移植到 HelixAgent (OpenCode)
 > 最后更新: 2026-06-29 (新增Trace机制 + Debug日志系统)
+> **状态说明**: 本文档为原始设计规划。当前实现状态请参考：
+> - `HELIX_AGENT_STATUS.md` — 系统状态与交付蓝图
+> - `DEAD_CODE_ACTIVATION_PLAN.md` — Phase 1-6 执行状态
+> - `DEVELOPMENT_PLAN.md` — 后续能力开发计划
 
 ---
 

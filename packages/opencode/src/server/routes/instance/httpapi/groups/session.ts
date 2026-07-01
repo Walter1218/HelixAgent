@@ -102,6 +102,11 @@ export const SessionPaths = {
   deleteMessage: `${root}/:sessionID/message/:messageID`,
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
   updatePart: `${root}/:sessionID/message/:messageID/part/:partID`,
+  goal: `${root}/:sessionID/goal`,
+  task: `${root}/:sessionID/task`,
+  actor: `${root}/:sessionID/actor`,
+  metrics: `${root}/:sessionID/metrics`,
+  token: `${root}/:sessionID/token`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -440,6 +445,133 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "part.update",
             description: "Update a part in a message.",
+          }),
+        ),
+        HttpApiEndpoint.get("goal", SessionPaths.goal, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Struct({
+              condition: Schema.String,
+              react: Schema.Number,
+            }).pipe(Schema.optional),
+            "Session goal",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.goal",
+            summary: "Get session goal",
+            description: "Retrieve the current goal for a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("task", SessionPaths.task, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Array(
+              Schema.Struct({
+                id: Schema.String,
+                sessionID: Schema.String,
+                parentID: Schema.optional(Schema.String),
+                title: Schema.String,
+                description: Schema.optional(Schema.String),
+                status: Schema.String,
+                priority: Schema.optional(Schema.String),
+                complexity: Schema.optional(Schema.String),
+                estimatedTokens: Schema.optional(Schema.Number),
+                actualTokens: Schema.optional(Schema.Number),
+                goalAlignment: Schema.optional(Schema.Number),
+                tags: Schema.optional(Schema.Array(Schema.String)),
+                createdAt: Schema.Number,
+                updatedAt: Schema.Number,
+                completedAt: Schema.optional(Schema.Number),
+                cleanupAfter: Schema.optional(Schema.Number),
+              }),
+            ),
+            "Session tasks",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.task",
+            summary: "Get session tasks",
+            description: "Retrieve all tasks associated with a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("actor", SessionPaths.actor, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Array(
+              Schema.Struct({
+                sessionID: Schema.String,
+                actorID: Schema.String,
+                mode: Schema.String,
+                status: Schema.String,
+                agent: Schema.String,
+                description: Schema.optional(Schema.String),
+                lastOutcome: Schema.optional(Schema.String),
+                time: Schema.Struct({
+                  created: Schema.Number,
+                  updated: Schema.Number,
+                }),
+              }),
+            ),
+            "Session actors",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.actor",
+            summary: "Get session actors",
+            description: "Retrieve all actors (subagents) associated with a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("metrics", SessionPaths.metrics, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Struct({
+              sessionID: Schema.String,
+              modelCalls: Schema.Number,
+              toolCalls: Schema.Number,
+              totalTokensIn: Schema.Number,
+              totalTokensOut: Schema.Number,
+              avgLatencyMs: Schema.Number,
+              avgTTFTMs: Schema.Number,
+              toolSuccessRate: Schema.Number,
+            }),
+            "Session metrics",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.metrics",
+            summary: "Get session metrics",
+            description: "Retrieve metrics summary for a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("token", SessionPaths.token, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Struct({
+              sessionID: Schema.String,
+              totalInput: Schema.Number,
+              totalOutput: Schema.Number,
+              totalTokens: Schema.Number,
+              byModel: Schema.Record(Schema.String, Schema.Number),
+              byPurpose: Schema.Record(Schema.String, Schema.Number),
+            }),
+            "Session token stats",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.token",
+            summary: "Get session token stats",
+            description: "Retrieve token usage statistics for a session.",
           }),
         ),
       )

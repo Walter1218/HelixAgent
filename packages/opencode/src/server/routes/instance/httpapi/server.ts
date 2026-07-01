@@ -49,6 +49,12 @@ import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Worktree } from "@/worktree"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { Goal } from "@/session/goal"
+import { TaskRegistry } from "@/task/registry"
+import { ActorRegistry } from "@/actor/registry"
+import { Metrics } from "@/metrics/metrics"
+import { TokenTracker } from "@/token/tracker"
+import { ModeRegistry } from "@/session/mode-registry"
 import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
 import { Database } from "@opencode-ai/core/database/database"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
@@ -264,6 +270,12 @@ const app = LayerNode.group([
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
+  Goal.node,
+  TaskRegistry.node,
+  ActorRegistry.node,
+  Metrics.node,
+  TokenTracker.node,
+  ModeRegistry.node,
 ])
 
 export function createRoutes(
