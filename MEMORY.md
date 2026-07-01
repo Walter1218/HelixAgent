@@ -1,7 +1,7 @@
 # HelixAgent Project Memory
 
-> Consolidated from opencode trajectory database on 2026-06-30
-> Source: 14 HelixAgent sessions, AGENTS.md, README.md, specs/, project files
+> Consolidated from opencode trajectory database on 2026-07-01
+> Source: 22 HelixAgent-local sessions, 54 cross-project sessions, AGENTS.md, README.md, specs/, project files
 
 ---
 
@@ -182,9 +182,9 @@ All system prompt assembly must use `SystemPromptBuilder.build(...)` from `packa
 
 ---
 
-## Dead Code Integration (Completed 2026-06-29)
+## Dead Code Integration (Completed 2026-07-01)
 
-**Status**: All 6 phases completed. 35 dead code modules integrated into main pipeline.
+**Status**: All 6 phases completed. 21 services + 6 tools integrated into main pipeline.
 
 | Phase | Modules | Status |
 |-------|---------|--------|
@@ -193,23 +193,23 @@ All system prompt assembly must use `SystemPromptBuilder.build(...)` from `packa
 | Phase 3 | Goal + Actor + Task + ModeRegistry | ✅ |
 | Phase 4 | Auto-Dream + Checkpoint Writer | ✅ |
 | Phase 5 | 6 dead tools (actor, history, memory, workflow, screenshot, multiedit) | ✅ |
-| Phase 6 | Evolution + Scheduler + Team + AST + Workflow | ✅ (registered, see below) |
+| Phase 6 | Evolution + Scheduler + Team + AST + Workflow + OpenSpecHook | ✅ (integrated 2026-06-30) |
 
-**Remaining**: 30 test file type errors (new Service Layer dependencies not provided in tests).
+### Main Chain Integration Status (Verified 2026-07-01)
 
-### Main Chain Integration Status (Verified 2026-06-30)
+**All Phase 6 services are now integrated** into the main execution path:
 
-**Critical Finding**: 4 modules from Phase 6 are **registered but dormant** — they are in `app-runtime.ts` but NOT actually called in the main execution path.
+| Module | Registered | Called in prompt.ts | Called in processor.ts | Status |
+|--------|------------|---------------------|------------------------|--------|
+| **Evolution** | ✅ | `exportSession` at runLoop end | — | **Active** |
+| **Team** | ✅ | Team summary after actor spawn | — | **Active** |
+| **AST** | ✅ | — | Changed-file recording in tool-result | **Active** |
+| **Workflow** | ✅ | Session lifecycle tracking | — | **Active** |
+| **OpenSpecHook** | ✅ | — | Spec compliance checks | **Active** |
+| **Scheduler** | ✅ | Token budget guard | — | **Partial** (budget check only) |
 
-| Module | Registered in app-runtime.ts | Called in prompt.ts | Called in processor.ts | Status |
-|--------|------------------------------|---------------------|------------------------|--------|
-| **Evolution** | ✅ | `modeRegistry.getEvolutionConfig` (line 1348) only | ❌ | **Dormant** — `exportSession` not called |
-| **Team** | ✅ | ❌ | ❌ | **Dormant** — no actor spawn integration |
-| **AST** | ✅ | ❌ | ❌ | **Dormant** — no blast radius calculation |
-| **Workflow** | ✅ | ❌ | ❌ | **Dormant** — no session lifecycle tracking |
-
-**Current branch**: `tui-dev`  
-**Integration plan**: `DEAD_CODE_MAIN_CHAIN_INTEGRATION_PLAN.md` (status: 规划中/planning)
+**Current branch**: `tui-dev`
+**Key commit**: `744abf51` — feat(core): integrate 6 dormant services into execution path
 
 ---
 
@@ -292,6 +292,8 @@ Two parallel implementations:
 - `compare-upstream.md` — Cross-project upstream comparison (created 2026-06-30)
 - `db-inspect.md` — Read-only database inspection (created 2026-06-30)
 - `prompt-audit.md` — System prompt assembly audit (created 2026-06-30)
+- `integration-status.md` — Phase 6 integration verification (created 2026-07-01)
+- `review-gaps.md` — Doc vs code consistency check (created 2026-07-01)
 
 ### Agents (`.opencode/agent/`)
 - `duplicate-pr.md`, `triage.md`
@@ -300,11 +302,21 @@ Two parallel implementations:
 
 ## Session Statistics (HelixAgent-local)
 
-- **Total sessions**: 14
-- **Date range**: 2026-06-29 to 2026-06-30
+- **Total sessions**: 22 (local) + 54 (cross-project)
+- **Date range**: 2026-06-29 to 2026-07-01
 - **Primary model**: `mimo-v2.5-pro` (xiaomi)
 - **Secondary model**: `k2p7` (kimi-for-coding)
-- **Agent modes used**: build, explore, dream, distill, ask
+- **Agent modes used**: build, explore, dream, distill, ask, compose
+
+### Session Breakdown (local)
+| Agent | Count |
+|-------|-------|
+| explore | 11 |
+| build | 2 |
+| compose | 2 |
+| dream | 3 |
+| distill | 3 |
+| ask | 1 |
 
 ---
 
@@ -321,6 +333,63 @@ Two parallel implementations:
 | `packages/opencode/src/tool/` | Tool definitions and registry |
 | `packages/opencode/src/config/` | Configuration modules |
 | `packages/core/src/**/*.sql.ts` | Drizzle schema definitions |
+| `packages/tui/src/routes/session/footer.tsx` | Token/Mode/Goal indicators |
+| `packages/tui/src/routes/session/sidebar.tsx` | Task/Actor panels |
+| `packages/tui/src/context/sync.tsx` | TUI data sync layer |
+| `packages/opencode/src/token/tracker.ts` | TokenTracker service (needs session-scoped APIs) |
+| `packages/opencode/src/metrics/metrics.ts` | Metrics service (query interfaces added) |
+
+---
+
+## TUI Externalization (Completed 2026-07-01)
+
+**Status**: All core indicators and panels implemented.
+
+### Implemented Components
+| Component | Location | API Source |
+|-----------|----------|------------|
+| Token indicator | `footer.tsx` | TokenTracker.getDailyBudget() |
+| Mode indicator | `footer.tsx` | ModeRegistry.inferMode() |
+| Goal indicator | `footer.tsx` | Goal.get(sessionID) |
+| Task panel | `sidebar.tsx` | TaskRegistry.listBySession() |
+| Actor panel | `sidebar.tsx` | ActorRegistry.listBySession() |
+
+### New HTTP API Endpoints
+- `/api/goal/:sessionID` — Goal status
+- `/api/tasks/:sessionID` — Task list
+- `/api/actors/:sessionID` — Actor list
+- `/api/metrics/:sessionID` — Metrics data
+- `/api/token/:sessionID` — Token usage
+
+**Key commit**: `64a13475` — feat(tui): externalize session indicators and panels
+
+---
+
+## Quality Assurance Roadmap (Created 2026-07-01)
+
+**Document**: `SHORT_TERM_ATTACK_PLAN.md` (v2.0 完美版)
+**Timeline**: 4-5 months
+**Core Philosophy**: 质量保障起点从代码阶段前移到需求阶段
+
+### Five-Layer Quality Loop
+1. **Layer 0: 需求结构化** — Multi-agent Spec generation pipeline
+2. **Layer 1: 执行前验收** — Goal Judge pre-check, Cardinal pre-check, OpenSpec pre-check
+3. **Layer 2: 执行中监控** — Trace, Cardinal, AlignmentGuard, OpenSpec continuous validation
+4. **Layer 3: 执行后验收** — OpenSpec final validation, test/typecheck, Goal Judge completion判定
+5. **Layer 4: 持续改进** — Trace persistence, Evolution export, Spec库积累
+
+### Current Quality Gaps
+- Cardinal: 5 rules but 4 rarely trigger (insufficient context)
+- OpenSpecHook: Only logWarning, doesn't block or feedback to model
+- Trace: In-memory only, lost on restart
+- Goal: Just turn counting (≥12 break), no real completion judgment
+- AlignmentGuard: Only detectRabbitHole used, fileDrift/distraction unused
+
+### Recommended Execution Order
+1. Week 1: TUI externalization (✅ done)
+2. Week 2: Memory Vector Store + History Service
+3. Week 3: Phase 6 service activation (✅ done)
+4. Week 4: Buffer + testing + fixes
 
 ---
 
@@ -334,21 +403,44 @@ Two parallel implementations:
 
 ---
 
-## Recent Session Insights (2026-06-30)
+## Recent Session Insights (2026-07-01)
 
-### Build Session: "helix agent 系统现状与核心功能接入情况"
-- **Session ID**: `ses_0e935251dffeu0Avm0HuCPNlIN`
+### Compose Session: "Helix Agent主链路状态与TUI外化评估"
+- **Session ID**: `ses_0e6c994a3ffe7CLvjAw8y1JPJu`
+- **Model**: mimo-v2.5-pro
+- **Key Findings**:
+  - 21 services + 6 tools now integrated into main chain
+  - TUI externalization complete (Token/Mode/Goal indicators + Task/Actor panels)
+  - Next priorities: Memory Vector Store, History Service, Inbox, Judge+Max
+  - Created `SHORT_TERM_ATTACK_PLAN.md` (v2.0 完美版) with 4-5 month roadmap
+
+### Build Session: "Coding agent与workflow智能体交付质量验收问题调研"
+- **Session ID**: `ses_0e6c51767ffeTuzK05WgAYYMBg`
 - **Model**: k2p7 (kimi-for-coding)
-- **Key Finding**: 4 modules (AST, Evolution, Team, Workflow) are registered but dormant — not integrated into main execution path
-- **Action Required**: Follow `DEAD_CODE_MAIN_CHAIN_INTEGRATION_PLAN.md` to wire modules into prompt.ts and processor.ts
+- **Key Findings**:
+  - Quality assurance challenges researched (Anthropic, OpenAI, GitHub sources)
+  - Created comprehensive quality gap analysis
+  - Generated `SHORT_TERM_ATTACK_PLAN.md` with 9-phase implementation plan
+  - Core insight: "集成≠有效" — integration doesn't equal effectiveness
 
-### Distill Session: Asset Creation
+### Explore Session: "Review文档与代码一致性"
+- **Session ID**: `ses_0e3d2f382ffeWua6uelIF3v7eW`
+- **Model**: mimo-v2.5-pro
+- **Verified**: All Phase 6 services are now actually called in main chain (not just registered)
+- **Doc Status**: HELIX_AGENT_STATUS.md updated to v1.2 reflecting completion
+
+### Explore Session: "检查TUI外化底层能力"
+- **Session ID**: `ses_0e490f581ffepvaViu4ZHYpFXW`
+- **Model**: mimo-v2.5-pro
+- **Findings**: TokenTracker/ModeRegistry/Goal/TaskRegistry/ActorRegistry APIs analyzed for TUI externalization
+- **Gap**: TokenTracker missing session-scoped query APIs (getUsage, getStats)
+
+### Dream Session: Memory Consolidation (Previous)
+- **Session ID**: `ses_0e933b1a2ffeWyuLTYDRWNwBJL`
+- **Model**: mimo-v2.5-pro
+- **Output**: Previous MEMORY.md consolidation (2026-06-30)
+
+### Distill Session: Asset Creation (Previous)
 - **Session ID**: `ses_0e933b1a1ffePDcRbglgqcsr7b`
 - **Model**: mimo-v2.5-pro
 - **Created Assets**: 4 new workflow assets (deep-explore, compare-upstream, db-inspect, prompt-audit)
-- **Pattern Analysis**: ~30 explore subagent sessions, ~15 cross-project comparison sessions identified
-
-### Dream Session: Memory Consolidation
-- **Session ID**: `ses_0e933b1a2ffeWyuLTYDRWNwBJL`
-- **Model**: mimo-v2.5-pro
-- **Output**: This MEMORY.md file updated with verified information from trajectory database

@@ -758,7 +758,7 @@ cd packages/opencode && bun test test/phase2/phase2.test.ts
 
 ## Phase 5: 工具层集成（6 个死工具注册）
 
-**目标**：将 6 个已定义但未注册的工具注册到 ToolRegistry。
+**目标**：将 6 个已定义的工具注册到 ToolRegistry。
 
 注意：`shell-tokenize.ts` 和 `shell-wrap.ts` 是工具辅助模块，不是独立工具，不需要注册为工具。它们在 Phase 2 中被 shell.ts 调用。
 
