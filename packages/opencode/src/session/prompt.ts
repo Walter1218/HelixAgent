@@ -1537,6 +1537,7 @@ export const layer = Layer.effect(
               Effect.gen(function* () {
                 const verdict = yield* judge.preflight({ sessionID, condition: finalGoal.condition }).pipe(Effect.catch(() => Effect.succeed(null)))
                 if (verdict) {
+                  yield* goal.setVerdict(sessionID, { ok: verdict.ok, impossible: verdict.impossible, reason: verdict.reason }).pipe(Effect.catch(() => Effect.void))
                   yield* trace.emit({
                     id: `goal-final-${Date.now()}`,
                     type: "decision",
@@ -1682,6 +1683,7 @@ export const layer = Layer.effect(
                   sessionID,
                   condition: currentGoal.condition,
                 })
+                yield* goal.setVerdict(sessionID, { ok: verdict.ok, impossible: verdict.impossible, reason: verdict.reason }).pipe(Effect.catch(() => Effect.void))
                 if (!verdict.ok) {
                   yield* Effect.logWarning("goal: preflight check failed", {
                     "session.id": sessionID,

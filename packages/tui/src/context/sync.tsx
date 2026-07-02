@@ -104,7 +104,11 @@ export const {
       formatter: FormatterStatus[]
       vcs: VcsInfo | undefined
       goal: {
-        [sessionID: string]: { condition: string; react: number } | undefined
+        [sessionID: string]: {
+          condition: string
+          react: number
+          verdict?: { ok: boolean; impossible?: boolean; reason: string }
+        } | undefined
       }
       task: {
         [sessionID: string]: Array<{

@@ -454,6 +454,11 @@ export const SessionApi = HttpApi.make("session")
             Schema.Struct({
               condition: Schema.String,
               react: Schema.Number,
+              verdict: Schema.optional(Schema.Struct({
+                ok: Schema.Boolean,
+                impossible: Schema.optional(Schema.Boolean),
+                reason: Schema.String,
+              })),
             }).pipe(Schema.optional),
             "Session goal",
           ),

@@ -2,9 +2,16 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect, Layer, Context } from "effect"
 import z from "zod"
 
+export type GoalVerdict = {
+  ok: boolean
+  impossible?: boolean
+  reason: string
+}
+
 export type Goal = {
   condition: string
   react: number
+  verdict?: GoalVerdict
 }
 
 export const Verdict = z.object({
@@ -34,6 +41,7 @@ export interface Interface {
   readonly get: (sessionID: string) => Effect.Effect<Goal | undefined>
   readonly clear: (sessionID: string) => Effect.Effect<void>
   readonly bumpReact: (sessionID: string) => Effect.Effect<number>
+  readonly setVerdict: (sessionID: string, verdict: GoalVerdict) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionGoal") {}
@@ -62,7 +70,13 @@ export const layer = Layer.effect(
       return goal.react
     })
 
-    return Service.of({ set, get, clear, bumpReact })
+    const setVerdict = Effect.fn("SessionGoal.setVerdict")(function* (sessionID: string, verdict: GoalVerdict) {
+      const goal = goals.get(sessionID)
+      if (!goal) return
+      goal.verdict = verdict
+    })
+
+    return Service.of({ set, get, clear, bumpReact, setVerdict })
   })
 )
 
