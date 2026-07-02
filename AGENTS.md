@@ -149,6 +149,70 @@ const table = sqliteTable("session", {
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
 
+## Lazy Loading for Startup-Sensitive Services
+
+When adding new services to `app-runtime.ts` or `registry.ts`, consider whether the service is needed at startup or can be loaded on-demand. Non-core services that have heavy dependency chains should use lazy loading to avoid TUI black screen issues.
+
+### When to Use Lazy Loading
+
+- Services with heavy dependency chains (e.g., LLM SDK types, multi-agent pipelines)
+- Optional quality assurance services (e.g., SpecReport, GoalJudge, CardinalPreflight)
+- Tools that import large modules (e.g., SpecTool with spec-generation/pipeline)
+- Any service that is consumed via `Effect.serviceOption` in `prompt.ts`
+
+### Lazy Loading Patterns
+
+**For service layers in `app-runtime.ts`:**
+```ts
+// Use Layer.unwrap + Effect.promise + dynamic import
+const lazyXxxService = Layer.unwrap(
+  Effect.promise(async () => {
+    const mod = await import("@/path/to/service")
+    return mod.XxxService.defaultLayer
+  }),
+)
+
+// Add to Layer.mergeAll
+export const AppLayer = Layer.mergeAll(
+  // ... core services ...
+  lazyXxxService,
+)
+```
+
+**For tools in `registry.ts`:**
+```ts
+// Create a proxy tool that defers import until init()
+const lazyTool = {
+  id: "tool-id",
+  init: () =>
+    Effect.gen(function* () {
+      const mod = yield* Effect.promise(() => import("./tool-module"))
+      const info = yield* mod.ToolDef
+      return yield* info.init()
+    }),
+} as unknown as Tool.Info
+
+// Add to tool initialization and builtin array
+const tool = yield* Effect.all({
+  // ... other tools ...
+  lazy: Tool.init(lazyTool),
+})
+
+return {
+  builtin: [
+    // ... other tools ...
+    tool.lazy,
+  ],
+}
+```
+
+### Verification
+
+After adding a lazy-loaded service, verify:
+1. TUI tests pass: `cd packages/tui && bun test --timeout 30000`
+2. Quality gates tests pass: `cd packages/opencode && bun test test/e2e/quality-gates/ --timeout 30000`
+3. Typecheck passes: `cd packages/opencode && bun typecheck`
+
 ## Prompt Context Assembly
 
 When adding context to the LLM prompt, keep the system prompt stable prefix intact:
