@@ -1,9 +1,10 @@
 # HelixAgent 反思机制设计方案
 
-> 版本: 1.1
+> 版本: 1.2
 > 创建日期: 2026-07-03
 > 最后更新: 2026-07-03
 > 目标: 构建基于任务执行、Trace 日志和中间输出的反思机制，实现智能体内部自进化 Loop
+> 变更: v1.2 新增 4.5 反思结果持久化机制，细化反馈闭环
 
 ---
 
@@ -476,6 +477,207 @@ CREATE INDEX idx_knowledge_key ON knowledge_entry(key);
    - 如果无异常，正式发布
 ```
 
+### 4.5 反思结果持久化机制
+
+#### 4.5.1 问题
+
+反思引擎产出的洞察需要持久化到正确位置，否则下次对话时智能体无法获取这些知识。当前系统有三种持久化载体，各有适用场景：
+
+| 载体 | 加载方式 | 适用场景 | 局限 |
+|------|----------|----------|------|
+| **AGENTS.md** | 每次对话自动注入系统提示 | 通用规则、硬约束 | 不宜过长，不适合复杂逻辑 |
+| **specs/** | 需要主动发现和引用 | 架构设计、详细方案 | 智能体可能不会主动查阅 |
+| **Skills** | 按需加载，可执行工作流 | 标准化流程、重复任务 | 需要显式触发 |
+
+#### 4.5.2 反思结果分类
+
+反思引擎产出的洞察应按类型自动分类，路由到对应的持久化位置：
+
+```
+反思输出
+  │
+  ├─ 规则型 ("永远不要 X" / "做 Y 之前必须 Z")
+  │   └─→ AGENTS.md
+  │       示例: "新增 API endpoint 时必须在 protocol groups/ 中定义"
+  │
+  ├─ 架构型 ("X 的正确路径是 A→B→C")
+  │   └─→ specs/
+  │       示例: "TUI sidebar 开发的 4 步路径"
+  │
+  ├─ 流程型 ("执行 A 之前先检查 B，然后做 C")
+  │   └─→ Skills
+  │       示例: "typecheck-fix 工作流"
+  │
+  └─ 临时型 ("这次踩了坑 D")
+      └─→ 不持久化
+          示例: "某个 API 当前有 bug，需要 workaround"
+```
+
+#### 4.5.3 分类判断规则
+
+| 判断维度 | 规则型 → AGENTS.md | 架构型 → specs/ | 流程型 → Skills |
+|----------|-------------------|-----------------|----------------|
+| **适用范围** | 所有任务 | 特定领域 | 重复性任务 |
+| **复杂度** | 1-2 句话 | 需要表格/图表 | 需要步骤序列 |
+| **稳定性** | 长期有效 | 中期有效 | 可能变化 |
+| **示例** | "不要修改 AppLayer" | "sidebar 开发路径" | "typecheck-fix 流程" |
+
+**自动分类算法**：
+
+```typescript
+function classifyReflection(finding: ReflectionFinding): PersistenceTarget {
+  const { type, complexity, scope, stability } = finding
+
+  // 规则型：简短、通用、长期有效
+  if (complexity === "low" && scope === "global" && stability === "long") {
+    return { target: "AGENTS.md", section: inferSection(finding) }
+  }
+
+  // 架构型：中等复杂度、领域特定
+  if (complexity === "medium" && scope === "domain") {
+    return { target: "specs/", filename: inferFilename(finding) }
+  }
+
+  // 流程型：可执行、重复性
+  if (type === "workflow" && stability === "medium") {
+    return { target: "skills/", filename: inferFilename(finding) }
+  }
+
+  // 默认不持久化
+  return { target: "none" }
+}
+```
+
+#### 4.5.4 持久化执行流程
+
+```
+反思引擎产出洞察
+  │
+  ├─ 1. 分类 → 判断目标位置
+  │
+  ├─ 2. 去重 → 检查目标位置是否已存在相似内容
+  │     ├─ 已存在 → 跳过或更新置信度
+  │     └─ 不存在 → 继续
+  │
+  ├─ 3. 格式化 → 按目标位置的格式要求转换
+  │     ├─ AGENTS.md → 简洁的规则描述 + 示例
+  │     ├─ specs/ → 结构化的 Markdown 文档
+  │     └─ skills/ → SKILL.md + 相关资源
+  │
+  ├─ 4. 写入 → 半自动模式（推荐）
+  │     ├─ 生成写入建议
+  │     ├─ 人工审核确认
+  │     └─ 执行写入
+  │
+  └─ 5. 验证 → 确保写入后系统正常
+        ├─ typecheck 通过
+        └─ 相关测试通过
+```
+
+#### 4.5.5 半自动 vs 全自动
+
+| 模式 | 优点 | 缺点 | 适用场景 |
+|------|------|------|----------|
+| **全自动** | 零人工成本 | 可能引入噪音 | 低风险规则（如格式规范） |
+| **半自动** | 人工把关质量 | 需要人工介入 | 高风险规则（如架构约束） |
+| **纯手动** | 完全可控 | 效率低 | 关键系统变更 |
+
+**推荐策略**：
+- 规则型 → **半自动**（生成建议，人工审核后写入 AGENTS.md）
+- 架构型 → **半自动**（生成 spec 草稿，人工完善后提交）
+- 流程型 → **全自动**（生成 skill，自动注册）
+
+#### 4.5.6 去重与冲突处理
+
+**去重机制**：
+
+```typescript
+function deduplicate(newEntry: KnowledgeEntry, target: string): Action {
+  const existing = findSimilarEntries(newEntry, target)
+
+  if (!existing) return { action: "append" }
+
+  // 相似度 > 0.8 → 视为重复
+  if (similarity(newEntry, existing) > 0.8) {
+    // 更新置信度（取较高者）
+    return { action: "update_confidence", entry: existing }
+  }
+
+  // 冲突 → 记录冲突日志，人工介入
+  if (conflicts(newEntry, existing)) {
+    return { action: "conflict", entries: [newEntry, existing] }
+  }
+
+  return { action: "append" }
+}
+```
+
+**冲突解决优先级**：
+
+```
+1. 置信度高者优先
+2. 新版本优先
+3. 人工介入（自动解决失败时）
+```
+
+#### 4.5.7 与现有系统的集成
+
+| 集成点 | 位置 | 触发时机 | 动作 |
+|--------|------|---------|------|
+| **GoalJudge verdict** | prompt.ts | 任务结束 | 评估是否需要持久化 |
+| **Evolution.exportSession** | evolution.ts | 会话结束 | 导出 DPO 对 + 持久化洞察 |
+| **Trace 事件分析** | trace.ts | 定期 | 识别模式，生成持久化建议 |
+
+#### 4.5.8 实现优先级
+
+| 阶段 | 内容 | 优先级 | 说明 |
+|------|------|--------|------|
+| **Phase 1** | 规则型 → AGENTS.md | P0 | 最简单，效果最直接 |
+| **Phase 2** | 架构型 → specs/ | P1 | 需要模板和格式化 |
+| **Phase 3** | 流程型 → Skills | P2 | 需要 skill 生成器 |
+
+**Phase 1 实现方案**：
+
+```typescript
+// src/reflection/persist-agents.ts
+
+interface RuleInsight {
+  rule: string           // "不要修改 AppLayer"
+  reason: string         // "会导致 TUI 黑屏"
+  confidence: number     // 0-1
+  examples?: string[]    // 反例
+}
+
+async function persistToAgentsMd(insight: RuleInsight): Promise<void> {
+  // 1. 读取现有 AGENTS.md
+  const content = await readFile("AGENTS.md")
+
+  // 2. 检查是否已存在
+  if (content.includes(insight.rule)) return
+
+  // 3. 找到合适的 section
+  const section = findSection(content, insight)
+
+  // 4. 生成写入建议（半自动模式）
+  const suggestion = formatAsAgentsMd(insight)
+  await showSuggestion(suggestion)
+
+  // 5. 人工确认后写入
+  if (await userConfirm()) {
+    await appendToSection(content, section, suggestion)
+  }
+}
+```
+
+#### 4.5.9 效果衡量
+
+| 指标 | 计算方法 | 目标 |
+|------|----------|------|
+| **持久化命中率** | 被引用的持久化条目 / 总条目 | > 60% |
+| **规则遵守率** | 遵守规则的任务 / 总任务 | > 90% |
+| **冲突率** | 冲突条目 / 总条目 | < 5% |
+| **人工干预率** | 需要人工介入的持久化 / 总持久化 | < 20% |
+
 ---
 
 ## 五、实现步骤
@@ -534,9 +736,9 @@ CREATE INDEX idx_knowledge_key ON knowledge_entry(key);
 - [ ] 知识生命周期完整
 - [ ] 冲突处理正确
 
-### 5.4 Phase 4: 应用引擎（1 周）
+### 5.4 Phase 4: 应用引擎 + 持久化（1.5 周）
 
-**目标**：将知识应用到系统
+**目标**：将知识应用到系统，并持久化到正确位置
 
 | 任务 | 说明 | 优先级 | 文件 |
 |------|------|--------|------|
@@ -544,13 +746,19 @@ CREATE INDEX idx_knowledge_key ON knowledge_entry(key);
 | 实现规则更新 | 动态更新 Harness 规则 | P0 | src/reflection/updater.ts |
 | 实现策略应用 | 动态应用 Agent 策略 | P0 | src/reflection/applier.ts |
 | 实现回滚机制 | 支持快速回滚 | P1 | src/reflection/rollback.ts |
+| **实现持久化分类器** | 反思结果自动分类路由 | P0 | src/reflection/persist-classifier.ts |
+| **实现 AGENTS.md 写入器** | 规则型洞察写入 AGENTS.md | P0 | src/reflection/persist-agents.ts |
+| **实现 spec 生成器** | 架构型洞察生成 spec 草稿 | P1 | src/reflection/persist-spec.ts |
+| **实现 skill 生成器** | 流程型洞察生成 skill | P2 | src/reflection/persist-skill.ts |
 | 实现 A/B 测试 | 新旧策略对比 | P2 | src/reflection/ab-test.ts |
 
 **验收标准**：
 - [ ] 系统指令能动态更新
 - [ ] Harness 规则能动态调整
 - [ ] 回滚机制正常工作
-- [ ] A/B 测试结果可信
+- [ ] 反思结果能正确分类并路由到 AGENTS.md / specs/ / skills/
+- [ ] 持久化后 typecheck 和测试通过
+- [ ] 去重机制正常工作（相似度 > 0.8 时不重复写入）
 
 ### 5.5 Phase 5: 集成测试（1 周）
 
@@ -681,20 +889,22 @@ Week 4: Phase 3 - 知识库
         ├── 实现知识验证和淘汰
         └── 实现冲突处理
 
-Week 5: Phase 4 - 应用引擎
+Week 5-6: Phase 4 - 应用引擎 + 持久化
         ├── 实现指令注入
         ├── 实现规则更新
         ├── 实现回滚机制
+        ├── 实现持久化分类器
+        ├── 实现 AGENTS.md 写入器
         └── 实现 A/B 测试
 
-Week 6: Phase 5 - 集成测试
+Week 7: Phase 5 - 集成测试
         ├── 端到端测试
         ├── 效果评估
         ├── 性能测试
         └── 文档更新
 ```
 
-**总计**: 6 周（含 20% 缓冲时间）
+**总计**: 7 周（含 20% 缓冲时间）
 
 ---
 
@@ -716,6 +926,15 @@ reflection:
     auto_apply: false                     # 是否自动应用
     retention_days: 30                    # 数据保留天数
     ab_test_sample_size: 10               # A/B 测试最小样本量
+  persistence:
+    enabled: true                         # 是否启用持久化
+    mode: "semi_auto"                     # auto / semi_auto / manual
+    targets:
+      agents_md: true                     # 规则型 → AGENTS.md
+      specs: true                         # 架构型 → specs/
+      skills: false                       # 流程型 → skills/ (暂不启用)
+    dedup_similarity: 0.8                 # 去重相似度阈值
+    require_confirmation: true            # 写入前是否需要人工确认
   monitoring:
     enabled: true                         # 是否启用监控
     alert_threshold: 0.1                  # 告警阈值（成功率下降 10%）
@@ -733,6 +952,9 @@ reflection:
 | **Harness 准确率** | 正确决策占比 | 下降 > 15% |
 | **反思触发率** | 反思触发频率 | < 50% |
 | **知识应用率** | 知识应用频率 | < 30% |
+| **持久化命中率** | 被引用的持久化条目占比 | < 60% |
+| **规则遵守率** | 遵守 AGENTS.md 规则的任务占比 | < 90% |
+| **持久化冲突率** | 冲突条目占比 | > 5% |
 
 ### 10.2 监控命令
 
