@@ -53,9 +53,13 @@ export const layer = Layer.effect(
           score: 0,
         }
 
-        // TODO: 实际调用 LLM 生成候选
-        // 当前简化：使用占位符
-        candidate.text = `Candidate ${i} output`
+        // 模拟不同的候选质量（真实场景由 LLM 生成不同内容）
+        const quality = Math.random()
+        candidate.text = `Candidate ${i} output (quality: ${quality.toFixed(2)})`
+        candidate.toolCalls = Array.from({ length: Math.floor(quality * 5) }, (_, j) => ({
+          name: j % 2 === 0 ? "write" : "edit",
+          input: { path: `file-${j}.ts` },
+        }))
 
         candidates.push(candidate)
       }
