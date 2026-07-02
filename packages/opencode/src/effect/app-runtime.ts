@@ -1,4 +1,4 @@
-import { Layer, ManagedRuntime } from "effect"
+import { Effect, Layer, ManagedRuntime } from "effect"
 import { attach } from "./run-service"
 import * as Observability from "@opencode-ai/core/observability"
 
@@ -73,6 +73,34 @@ import { OpenSpec } from "@/openspec"
 import { OpenSpecJudge } from "@/openspec/judge"
 import { OpenSpecHook } from "@/openspec/hook"
 
+const lazySpecReport = Layer.unwrap(
+  Effect.promise(async () => {
+    const mod = await import("@/openspec/report")
+    return mod.SpecReport.defaultLayer
+  }),
+)
+
+const lazyOpenSpecPrecheck = Layer.unwrap(
+  Effect.promise(async () => {
+    const mod = await import("@/openspec/precheck")
+    return mod.OpenSpecPrecheck.defaultLayer
+  }),
+)
+
+const lazyGoalJudge = Layer.unwrap(
+  Effect.promise(async () => {
+    const mod = await import("@/session/goal-judge")
+    return mod.GoalJudge.defaultLayer
+  }),
+)
+
+const lazyCardinalPreflight = Layer.unwrap(
+  Effect.promise(async () => {
+    const mod = await import("@/session/preflight")
+    return mod.CardinalPreflight.defaultLayer
+  }),
+)
+
 export const AppLayer = Layer.mergeAll(
   Npm.defaultLayer,
   FSUtil.defaultLayer,
@@ -141,6 +169,10 @@ export const AppLayer = Layer.mergeAll(
    OpenSpecJudge.defaultLayer,
     OpenSpecHook.defaultLayer,
     Scheduler.defaultLayer,
+    lazySpecReport,
+    lazyOpenSpecPrecheck,
+    lazyGoalJudge,
+    lazyCardinalPreflight,
  ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),

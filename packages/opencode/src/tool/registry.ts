@@ -68,6 +68,16 @@ import { ActorWaiter } from "@/actor/waiter"
 import { Team } from "@/team/team"
 import { Scheduler } from "@/scheduler/scheduler"
 
+const lazySpecTool = {
+  id: "spec",
+  init: () =>
+    Effect.gen(function* () {
+      const mod = yield* Effect.promise(() => import("./spec"))
+      const info = yield* mod.SpecTool
+      return yield* info.init()
+    }),
+} as unknown as Tool.Info
+
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.opencode || flags.exa || flags.parallel
 }
@@ -245,6 +255,7 @@ export const layer = Layer.effect(
           workflow: Tool.init(workflow),
           screenshot: Tool.init(screenshot),
           multiedit: Tool.init(multiedit),
+          spec: Tool.init(lazySpecTool),
         })
 
         return {
@@ -273,6 +284,7 @@ export const layer = Layer.effect(
             ...(flags.experimentalWorkflowTool ? [tool.workflow] : []),
             tool.screenshot,
             tool.multiedit,
+            tool.spec,
           ],
           task: tool.task,
           read: tool.read,
