@@ -33,6 +33,7 @@ import { AST } from "@/ast/ast"
 import { OpenSpecHook } from "@/openspec/hook"
 import { AlignmentGuard } from "@/observability/alignment-guard"
 import { Rollback } from "@/session/rollback"
+import { History } from "@/history/service"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -122,6 +123,7 @@ export const layer = Layer.effect(
     const cardinal = yield* Cardinal.Service
     const alignment = yield* AlignmentGuard.Service
     const rollback = yield* Rollback.Service
+    const history = yield* History.Service
     const maybeAST = yield* Effect.serviceOption(AST.Service)
     const maybeOpenSpecHook = yield* Effect.serviceOption(OpenSpecHook.Service)
 
@@ -612,6 +614,18 @@ export const layer = Layer.effect(
               tool_call_status: "success",
             })
             ctx.consecutiveFailures = 0
+
+            // 写入 history
+            yield* history.ingest({
+              message_id: ctx.assistantMessage.id,
+              session_id: ctx.sessionID,
+              part_id: value.id,
+              kind: "tool_output",
+              tool_name: value.name,
+              content: output.output,
+              time_created: Date.now(),
+            }).pipe(Effect.ignore)
+
             return
           }
 
@@ -952,6 +966,12 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(AlignmentGuard.defaultLayer),
     Layer.provide(Rollback.defaultLayer),
     Layer.provide(OpenSpecHook.defaultLayer),
+    Layer.provide(Trace.defaultLayer),
+    Layer.provide(Metrics.defaultLayer),
+    Layer.provide(TokenTracker.defaultLayer),
+    Layer.provide(Cardinal.defaultLayer),
+  ).pipe(
+    Layer.provide(History.defaultLayer),
   ),
 )
 
@@ -978,6 +998,7 @@ export const node = LayerNode.make({
     AlignmentGuard.node,
     Rollback.node,
     AST.node,
+    History.node,
   ],
 })
 

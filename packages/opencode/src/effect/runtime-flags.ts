@@ -54,7 +54,7 @@ export class Service extends ConfigService.Service<Service>()("@opencode/Runtime
   experimentalWebSockets: bool("OPENCODE_EXPERIMENTAL_WEBSOCKETS"),
   experimentalActorTool: enabledByExperimental("OPENCODE_EXPERIMENTAL_ACTOR_TOOL"),
   experimentalHistoryTool: enabledByExperimental("OPENCODE_EXPERIMENTAL_HISTORY_TOOL"),
-  experimentalMemoryTool: enabledByExperimental("OPENCODE_EXPERIMENTAL_MEMORY_TOOL"),
+  experimentalMemoryTool: bool("OPENCODE_EXPERIMENTAL_MEMORY_TOOL").pipe(Config.withDefault(true)),
   experimentalWorkflowTool: enabledByExperimental("OPENCODE_EXPERIMENTAL_WORKFLOW_TOOL"),
   client: Config.string("OPENCODE_CLIENT").pipe(Config.withDefault("cli")),
 }) {}

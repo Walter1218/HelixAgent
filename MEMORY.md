@@ -1,7 +1,7 @@
 # HelixAgent Project Memory
 
-> Consolidated from opencode trajectory database on 2026-07-01
-> Source: 22 HelixAgent-local sessions, 54 cross-project sessions, AGENTS.md, README.md, specs/, project files
+> Consolidated from opencode trajectory database on 2026-07-02
+> Source: 60 HelixAgent-local sessions, AGENTS.md, README.md, specs/, project files, MAIN_CHAIN_ASSESSMENT.md
 
 ---
 
@@ -286,6 +286,10 @@ Two parallel implementations:
 ### Skills (`.opencode/skills/`)
 - `effect/` — Effect framework skill
 - `deep-explore/` — Parallel subagent codebase exploration (created 2026-06-30)
+- `compare-implementations/` — Structured side-by-side codebase comparison
+- `verify-implementation/` — Doc vs code verification
+- `typecheck-fix/` — Automated typecheck-fix cycle (created 2026-07-02)
+- `tui-smoke/` — TUI startup verification and black-screen diagnosis (created 2026-07-02)
 
 ### Commands (`.opencode/command/`)
 - `ai-deps.md`, `changelog.md`, `commit.md`, `issues.md`, `learn.md`, `rmslop.md`, `spellcheck.md`, `translate.md`
@@ -302,8 +306,8 @@ Two parallel implementations:
 
 ## Session Statistics (HelixAgent-local)
 
-- **Total sessions**: 22 (local) + 54 (cross-project)
-- **Date range**: 2026-06-29 to 2026-07-01
+- **Total sessions**: 60 (local)
+- **Date range**: 2026-06-29 to 2026-07-02
 - **Primary model**: `mimo-v2.5-pro` (xiaomi)
 - **Secondary model**: `k2p7` (kimi-for-coding)
 - **Agent modes used**: build, explore, dream, distill, ask, compose
@@ -311,12 +315,12 @@ Two parallel implementations:
 ### Session Breakdown (local)
 | Agent | Count |
 |-------|-------|
-| explore | 11 |
-| build | 2 |
-| compose | 2 |
-| dream | 3 |
-| distill | 3 |
-| ask | 1 |
+| explore | 19 |
+| dream | 11 |
+| distill | 11 |
+| build | 8 |
+| ask | 7 |
+| compose | 4 |
 
 ---
 
@@ -338,6 +342,11 @@ Two parallel implementations:
 | `packages/tui/src/context/sync.tsx` | TUI data sync layer |
 | `packages/opencode/src/token/tracker.ts` | TokenTracker service (needs session-scoped APIs) |
 | `packages/opencode/src/metrics/metrics.ts` | Metrics service (query interfaces added) |
+| `MAIN_CHAIN_ASSESSMENT.md` | Quality assessment of all integrated modules |
+| `packages/opencode/src/session/auto-dream.ts` | Auto-Dream/Distill trigger logic |
+| `packages/opencode/src/tool/memory.ts` | Memory search tool (read-only, no writes) |
+| `packages/opencode/src/history/schema.ts` | History service schema (no implementation) |
+| `packages/opencode/openspec/` | OpenSpec system and spec files |
 
 ---
 
@@ -387,9 +396,81 @@ Two parallel implementations:
 
 ### Recommended Execution Order
 1. Week 1: TUI externalization (✅ done)
-2. Week 2: Memory Vector Store + History Service
+2. Week 2: Memory Vector Store (✅ done) + History Service
 3. Week 3: Phase 6 service activation (✅ done)
 4. Week 4: Buffer + testing + fixes
+
+---
+
+## Current Development Status (2026-07-02)
+
+### Branch Status
+- **Current branch**: `tui-dev`
+- **Uncommitted changes**: 6 modified files (server.ts, checkpoint.ts, processor.ts, prompt.ts, registry.ts, config.ts)
+- **New files**: `MAIN_CHAIN_ASSESSMENT.md`, `packages/opencode/openspec/` directory
+
+### Recent Commits (Last 5)
+1. `1f6a6ecf7` — docs: add lazy loading guidelines to AGENTS.md
+2. `69612e7dd` — fix(tui): lazy load quality assurance capabilities to fix black screen
+3. `9c28d570b` — fix(tui): fix black screen by removing SpecTool and quality layers
+4. `f80d22d59` — docs: remove outdated descriptions
+5. `5fe54cda7` — docs: update status to reflect Phase 6 completion
+
+### New Assets Created
+- **Skills**: `compare-implementations`, `verify-implementation`
+- **Spec files**: `packages/opencode/openspec/specs/chain-test-1782989490189.md`
+- **Test files**: Quality gates tests, spec generation tests, trace tests
+
+### Development Plan Status (from DEVELOPMENT_PLAN.md)
+| Phase | Content | Status |
+|-------|---------|--------|
+| **TUI 外化** | Token/Mode/Goal indicators + Task/Actor panels | ✅ Completed |
+| **阶段一** | Memory Vector Store 启用 | ✅ Completed (2026-07-02) |
+| **阶段二** | History Service | ✅ Completed (2026-07-02) |
+| **阶段三** | Inbox + Distill Agent | ✅ Completed (2026-07-02) |
+| **阶段四** | Judge + Max 模式 | 🔲 待开发 (P1) |
+| **暂缓** | Shadow Worktree | ⏸️ 暂缓 (P3) |
+
+---
+
+## Memory System Status (2026-07-02)
+
+### Current State
+- **memory_fts table**: Active, supports full-text search
+- **memory_vec table**: Active, supports vector embedding storage
+- **Memory tool**: Enabled by default (`OPENCODE_EXPERIMENTAL_MEMORY_TOOL=1`)
+- **Vector embedding**: Enabled by default (`MEMORY_EMBEDDING_ENABLED=1`)
+- **Hybrid search**: FTS (0.6) + Vector (0.4) with co-occurrence boost (1.3x)
+
+### Implementation Details
+- **VecStore**: `packages/core/src/memory/vec-store.ts` - Vector storage and retrieval
+- **Embedder**: `packages/core/src/memory/embedder.ts` - LM Studio API integration
+- **Memory.Service**: `packages/core/src/memory/service.ts` - FTS + Vector hybrid search
+- **Migration**: `packages/core/src/database/migration/20260701_add_memory_vec.ts`
+
+### Configuration
+```bash
+# Environment variables
+MEMORY_EMBEDDING_ENABLED=1          # Enable vector embedding (default: true)
+MEMORY_EMBEDDING_BASE_URL=http://localhost:1234/v1/embeddings
+MEMORY_EMBEDDING_MODEL=text-embedding-bge-m3
+
+# Or in config.json
+{
+  "memory": {
+    "embedding": {
+      "enabled": true,
+      "baseUrl": "http://localhost:1234/v1/embeddings",
+      "model": "text-embedding-bge-m3"
+    }
+  }
+}
+```
+
+### Test Coverage
+- 51 tests passing in `test/memory/`
+- E2E scenarios verified: API design, testing strategies, TypeScript tips
+- Hybrid search returns correct results with proper ranking
 
 ---
 
@@ -403,18 +484,96 @@ Two parallel implementations:
 
 ---
 
-## Recent Session Insights (2026-07-01)
+## Quality Assessment (2026-07-02)
 
-### Compose Session: "Helix Agent主链路状态与TUI外化评估"
+**Document**: `MAIN_CHAIN_ASSESSMENT.md`
+**Assessment Date**: 2026-07-02
+**Scope**: All integrated modules in packages/opencode/src
+
+### Module Quality Rankings
+
+| Tier | Modules | Score |
+|------|---------|-------|
+| **A/A-** | Trace (8.3), Cardinal (8.0), OpenSpec (7.7), Workflow (7.7) | Production-grade |
+| **B+** | Team (6.7), History tool (6.7) | Half-finished |
+| **B** | AST (6.3), LSP tool (6.3), SpecReport (6.3), Scheduler (6.0) | Half-finished |
+| **C/D** | Metrics (3.0), TokenTracker (2.3), Checkpoint Writer (1.0) | Scaffold |
+
+### Critical Issues Identified
+
+1. **"Record-only" Pattern**: 15+ modules observe and log but never inject back into prompt or block behavior
+2. **Only 2 Hard Gates**: Cardinal `block` (prevents tool execution) + Scheduler token budget (interrupts loop)
+3. **Memory Not Persisted**: Metrics and TokenTracker use in-memory `Ref`, lost on restart
+4. **Checkpoint Writer Broken**: `spawnRef.current` never assigned, always returns silently
+5. **Auto-Dream Timer Bug**: In-memory timer resets to 0 on every restart, triggering dream on first prompt
+6. **Memory FTS Empty**: `memory_fts` table has 0 entries, memory search returns nothing
+
+### Highest ROI Improvements
+
+| Priority | Improvement | Expected Effect |
+|:---:|-------------|-----------------|
+| P0 | Metrics/TokenTracker persistence to SQLite | Data survives restarts |
+| P0 | Checkpoint Writer connect spawnRef | Activate checkpoint infrastructure |
+| P1 | AST blast radius → prompt injection | Observation → closed-loop |
+| P1 | AlignmentGuard detectFileDrift → main chain | Activate dead code |
+| P1 | TokenTracker canAfford → prompt loop | Real budget gating |
+| P2 | Auto-Dream timer persistence | Fix restart trigger bug |
+| P2 | ModeRegistry inferMode → agent parsing | Mode affects behavior |
+| P2 | Goal entry expansion (not just spec tool) | More general goal-driven |
+
+---
+
+## Recent Session Insights (2026-07-02)
+
+### Build Session: "Helix Agent 现状与优化方向"
+- **Session ID**: `ses_0dcdd9cd5ffeDNi4UCbv7TJ7io`
+- **Model**: mimo-v2.5-pro
+- **Key Findings**:
+  - Comprehensive analysis of current project status
+  - Dead Code Activation Phase 1-6: All completed (21 services + 6 tools)
+  - TUI externalization: Completed
+  - OpenSpec system: Fully integrated
+  - Memory Vector Store: Completed (FTS + Vector hybrid search)
+  - History Service: Completed (FTS search, inject to user message)
+  - Inbox System: Completed (send/list/markRead/markAllRead)
+  - Distill Agent: Completed (shouldAutoDistill + independent agent)
+  - Type checking: Passing (0 errors)
+  - Next priorities: Judge + Max (P1)
+
+### Build Session: "helix agent 现状、实现质量与待办功能排查"
+- **Session ID**: `ses_0dd31ca72ffetA1WpKffEPUQpp`
+- **Model**: mimo-v2.5-pro
+- **Key Findings**:
+  - Created `MAIN_CHAIN_ASSESSMENT.md` with comprehensive quality assessment
+  - Identified "record-only" pattern in 15+ modules
+  - Only 2 hard gates in entire system (Cardinal block + Scheduler token budget)
+  - Highest ROI improvements identified (P0: Metrics/TokenTracker persistence, Checkpoint Writer activation)
+
+### Explore Session: "探索 Helix Agent 项目结构"
+- **Session ID**: `ses_0dcdd71bcffe7d0h6Q0dQSq3kL`
+- **Model**: mimo-v2.5-pro
+- **Key Findings**:
+  - Project structure analysis for build session
+  - 32 packages in monorepo
+  - Effect v4 beta (effect-smol) framework
+  - SQLite FTS5 for full-text search
+
+### Dream Sessions: Multiple Auto Dream (2026-07-02)
+- **Count**: 7 sessions
+- **Observation**: memory_fts table has 0 entries, memory search returns nothing
+- **Issue**: Auto-Dream timer resets on every restart, triggering dream on first prompt
+
+### Compose Session: "Helix Agent主链路状态与TUI外化评估" (Previous)
 - **Session ID**: `ses_0e6c994a3ffe7CLvjAw8y1JPJu`
 - **Model**: mimo-v2.5-pro
 - **Key Findings**:
   - 21 services + 6 tools now integrated into main chain
   - TUI externalization complete (Token/Mode/Goal indicators + Task/Actor panels)
-  - Next priorities: Memory Vector Store, History Service, Inbox, Judge+Max
+  - Memory Vector Store completed (2026-07-02)
+  - Next priorities: History Service, Inbox + Distill, Judge + Max
   - Created `SHORT_TERM_ATTACK_PLAN.md` (v2.0 完美版) with 4-5 month roadmap
 
-### Build Session: "Coding agent与workflow智能体交付质量验收问题调研"
+### Build Session: "Coding agent与workflow智能体交付质量验收问题调研" (Previous)
 - **Session ID**: `ses_0e6c51767ffeTuzK05WgAYYMBg`
 - **Model**: k2p7 (kimi-for-coding)
 - **Key Findings**:
@@ -423,24 +582,8 @@ Two parallel implementations:
   - Generated `SHORT_TERM_ATTACK_PLAN.md` with 9-phase implementation plan
   - Core insight: "集成≠有效" — integration doesn't equal effectiveness
 
-### Explore Session: "Review文档与代码一致性"
+### Explore Session: "Review文档与代码一致性" (Previous)
 - **Session ID**: `ses_0e3d2f382ffeWua6uelIF3v7eW`
 - **Model**: mimo-v2.5-pro
 - **Verified**: All Phase 6 services are now actually called in main chain (not just registered)
 - **Doc Status**: HELIX_AGENT_STATUS.md updated to v1.2 reflecting completion
-
-### Explore Session: "检查TUI外化底层能力"
-- **Session ID**: `ses_0e490f581ffepvaViu4ZHYpFXW`
-- **Model**: mimo-v2.5-pro
-- **Findings**: TokenTracker/ModeRegistry/Goal/TaskRegistry/ActorRegistry APIs analyzed for TUI externalization
-- **Gap**: TokenTracker missing session-scoped query APIs (getUsage, getStats)
-
-### Dream Session: Memory Consolidation (Previous)
-- **Session ID**: `ses_0e933b1a2ffeWyuLTYDRWNwBJL`
-- **Model**: mimo-v2.5-pro
-- **Output**: Previous MEMORY.md consolidation (2026-06-30)
-
-### Distill Session: Asset Creation (Previous)
-- **Session ID**: `ses_0e933b1a1ffePDcRbglgqcsr7b`
-- **Model**: mimo-v2.5-pro
-- **Created Assets**: 4 new workflow assets (deep-explore, compare-upstream, db-inspect, prompt-audit)

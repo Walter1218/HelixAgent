@@ -119,6 +119,16 @@ import { corsVaryFix } from "./middleware/cors-vary"
 import { errorLayer } from "./middleware/error"
 import { fenceLayer } from "./middleware/fence"
 import { schemaErrorLayer } from "./middleware/schema-error"
+import { Cardinal } from "@/session/cardinal"
+import { AlignmentGuard } from "@/observability/alignment-guard"
+import { Scheduler } from "@/scheduler/scheduler"
+import { AutoDream } from "@/session/auto-dream"
+import { SessionCheckpoint } from "@/session/checkpoint"
+import { Evolution } from "@/evolution/evolution"
+import { Team } from "@/team/team"
+import { AST } from "@/ast/ast"
+import { Workflow } from "@/workflow/workflow"
+import { Trace } from "@/trace/trace"
 
 export const context = Context.makeUnsafe<unknown>(new Map())
 
@@ -276,6 +286,16 @@ const app = LayerNode.group([
   Metrics.node,
   TokenTracker.node,
   ModeRegistry.node,
+  Cardinal.node,
+  AlignmentGuard.node,
+  Scheduler.node,
+  AutoDream.node,
+  SessionCheckpoint.node,
+  Evolution.node,
+  Team.node,
+  AST.node,
+  Workflow.node,
+  Trace.node,
 ])
 
 export function createRoutes(

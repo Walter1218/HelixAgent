@@ -72,6 +72,8 @@ import { Workflow } from "@/workflow/workflow"
 import { OpenSpec } from "@/openspec"
 import { OpenSpecJudge } from "@/openspec/judge"
 import { OpenSpecHook } from "@/openspec/hook"
+import { History } from "@/history/service"
+import { Inbox } from "@/inbox/inbox"
 
 const lazySpecReport = Layer.unwrap(
   Effect.promise(async () => {
@@ -168,8 +170,10 @@ export const AppLayer = Layer.mergeAll(
    OpenSpec.defaultLayer,
    OpenSpecJudge.defaultLayer,
     OpenSpecHook.defaultLayer,
-    Scheduler.defaultLayer,
-    lazySpecReport,
+     Scheduler.defaultLayer,
+     History.defaultLayer,
+     Inbox.defaultLayer,
+     lazySpecReport,
     lazyOpenSpecPrecheck,
     lazyGoalJudge,
     lazyCardinalPreflight,

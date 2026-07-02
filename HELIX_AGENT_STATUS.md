@@ -1,8 +1,8 @@
 # HelixAgent 系统状态与交付蓝图
 
-> 版本: 1.2
+> 版本: 1.3
 > 生成日期: 2026-06-30
-> 最后更新: 2026-07-01
+> 最后更新: 2026-07-02
 > 分支: tui-dev
 > 基准: HEAD
 > 适用范围: MiMo/Helix 能力移植与死代码激活项目
@@ -15,9 +15,9 @@
 
 | 类别 | 数量 | 说明 |
 |------|------|------|
-| **已接入主链路** | 21 个服务 + 6 个工具 | 可正常运行（含 Phase 6 + OpenSpec） |
+| **已接入主链路** | 24 个服务 + 7 个工具 | 可正常运行（含 Phase 6 + OpenSpec + Memory + History + Inbox） |
 | **部分接入主链路** | 1 个服务 | Scheduler 仅 budget 检查 |
-| **完全未实现** | 6 个能力 | 无目录、无文件、无引用 |
+| **完全未实现** | 5 个能力 | 无目录、无文件、无引用 |
 | **TUI 外化** | 5 个指示器/面板 | 已完成 Token/Mode/Goal/Task/Actor |
 
 ### 1.2 关键结论
@@ -25,7 +25,11 @@
 1. **DEAD_CODE_ACTIVATION_PLAN Phase 1-6 已全部完成**：所有服务已接入主链路（Scheduler 除外，仅 budget 检查）。
 2. **OpenSpec 系统已完整接入**：OpenSpecHook 已注册并调用，OpenSpec/OpenSpecJudge 通过 OpenSpecHook 间接使用。
 3. **TUI 外化已完成**：Token/Mode/Goal 指示器 + Task/Actor 面板已实现，底层 API 已补充（Metrics/TokenTracker 查询接口）。
-4. **下一步**：Memory Vector Store、History Service、Inbox、Judge+Max 等新能力开发。
+4. **Memory Vector Store 已完成**：FTS + Vector 混合检索已接入主链路，默认启用。
+5. **History Service 已完成**：FTS 搜索已接入主链路，默认启用，注入到用户消息。
+6. **Inbox 系统已完成**：Actor 间消息传递已接入主链路，AlignmentGuard 可发送警报。
+7. **Distill Agent 已完成**：工作流蒸馏已接入主链路，shouldAutoDistill 已实现。
+8. **下一步**：Judge + Max 模式开发。
 
 ### 1.3 当前环境快照
 

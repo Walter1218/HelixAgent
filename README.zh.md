@@ -129,6 +129,36 @@ npm install -g @mimo-ai/cli
 - 智谱GLM
 - 等等
 
+#### 记忆配置（可选）
+
+记忆工具和向量检索默认启用。如需关闭：
+
+```json
+{
+  "memory": {
+    "embedding": {
+      "enabled": false
+    }
+  }
+}
+```
+
+或通过环境变量：
+
+```bash
+# 关闭记忆工具
+OPENCODE_EXPERIMENTAL_MEMORY_TOOL=0
+
+# 关闭向量检索
+MEMORY_EMBEDDING_ENABLED=0
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `memory.embedding.enabled` | boolean | `true` | 启用向量嵌入进行混合搜索 |
+| `memory.embedding.baseUrl` | string | `http://localhost:1234/v1/embeddings` | 嵌入 API 端点 |
+| `memory.embedding.model` | string | `text-embedding-bge-m3` | 嵌入模型名称 |
+
 ### 运行
 
 ```bash
@@ -158,14 +188,30 @@ mimo serve --port 3096
 
 ### 2. 持久记忆系统
 
-跨会话记忆，基于SQLite FTS5全文搜索：
+跨会话记忆，基于 SQLite FTS5 + 向量 RAG：
 
 - **项目记忆** (`MEMORY.md`) - 持久化项目知识、规则、架构决策
 - **会话检查点** (`checkpoint.md`) - 由checkpoint-writer子智能体自动维护的结构化状态快照
 - **临时笔记** (`notes.md`) - 智能体的临时笔记区域
 - **任务进度** (`tasks/<id>/progress.md`) - 每个任务的日志
+- **向量嵌入** - FTS + Vector 混合搜索（需要 LM Studio 加载 bge-m3 模型）
 
 会话恢复时自动注入记忆，智能体无需重新学习项目上下文。
+
+#### 混合搜索（FTS + Vector）
+
+启用向量嵌入后，记忆搜索使用混合排名：
+- **FTS（权重 0.6）** - BM25 关键词匹配
+- **Vector（权重 0.4）** - 余弦相似度语义匹配
+- **共现 boost（1.3x）** - 同时匹配 FTS 和 Vector 的文档获得更高分数
+
+```bash
+# 启用向量嵌入（需要 LM Studio）
+export MEMORY_EMBEDDING_ENABLED=1
+
+# 启动 LM Studio 并加载 text-embedding-bge-m3 模型
+# 默认 API 端点：http://localhost:1234/v1/embeddings
+```
 
 ### 3. 智能上下文管理
 

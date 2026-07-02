@@ -74,6 +74,7 @@ import { GoalJudge } from "@/session/goal-judge"
 import { CardinalPreflight } from "@/session/preflight"
 import { OpenSpecPrecheck } from "@/openspec/precheck"
 import { Trace } from "@/trace/trace"
+import { History } from "@/history/service"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -170,6 +171,7 @@ export const layer = Layer.effect(
     const maybeCardinalPreflight = yield* Effect.serviceOption(CardinalPreflight.Service)
     const maybeOpenSpecPrecheck = yield* Effect.serviceOption(OpenSpecPrecheck.Service)
     const trace = yield* Trace.Service
+    const history = yield* History.Service
     const maybeScheduler = yield* Effect.serviceOption(Scheduler.Service)
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
@@ -1074,6 +1076,27 @@ export const layer = Layer.effect(
         })
       }
 
+      // 搜索相关历史消息并注入到用户消息
+      const userText = parts.find(p => p.type === "text")?.text
+      if (userText) {
+        const historyResults = yield* history.search({ query: userText, limit: 3 }).pipe(Effect.catchAll(() => Effect.succeed([])))
+        if (historyResults.length > 0) {
+          const historyContext = historyResults
+            .map((r: any) => `- [${r.kind}] ${r.snippet}`)
+            .join("\n")
+          
+          // 在用户消息中添加历史上下文
+          const historyPart = assign({
+            messageID: info.id,
+            sessionID: input.sessionID,
+            type: "text",
+            synthetic: true,
+            text: `\n[相关历史]\n${historyContext}`,
+          })
+          parts.push(historyPart)
+        }
+      }
+
       yield* sessions.updateMessage(info)
       for (const part of parts) yield* sessions.updatePart(part)
 
@@ -1909,6 +1932,15 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(SessionRevert.defaultLayer),
     Layer.provide(SessionSummary.defaultLayer),
     Layer.provide(Image.defaultLayer),
+    Layer.provide(Trace.defaultLayer),
+    Layer.provide(History.defaultLayer),
+    Layer.provide(AlignmentGuard.defaultLayer),
+    Layer.provide(Goal.defaultLayer),
+    Layer.provide(ModeRegistry.defaultLayer),
+    Layer.provide(AutoDream.defaultLayer),
+    Layer.provide(SessionCheckpoint.defaultLayer),
+  ).pipe(
+    Layer.provide(History.defaultLayer),
   ),
 )
 const ModelRef = Schema.Struct({
@@ -2051,6 +2083,7 @@ export const node = LayerNode.make({
     AutoDream.node,
     SessionCheckpoint.node,
     Trace.node,
+    History.node,
   ] as any,
 })
 

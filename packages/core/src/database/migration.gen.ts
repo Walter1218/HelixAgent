@@ -45,5 +45,8 @@ export const migrations = (
     import("./migration/20260630_add_memory_fts"),
     import("./migration/20260701_add_trace_event"),
     import("./migration/20260701_add_spec_library"),
+    import("./migration/20260701_add_memory_vec"),
+    import("./migration/20260702_add_history_fts"),
+    import("./migration/20260702_add_inbox"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

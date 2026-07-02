@@ -67,6 +67,10 @@ import { ActorSpawn } from "@/actor/spawn"
 import { ActorWaiter } from "@/actor/waiter"
 import { Team } from "@/team/team"
 import { Scheduler } from "@/scheduler/scheduler"
+import { Cardinal } from "@/session/cardinal"
+import { Goal } from "@/session/goal"
+import { Trace } from "@/trace/trace"
+import { OpenSpec } from "@/openspec/spec"
 
 const lazySpecTool = {
   id: "spec",
@@ -401,6 +405,10 @@ export const defaultLayer = Layer.suspend(() =>
       Layer.provide(RuntimeFlags.defaultLayer),
       Layer.provide(Memory.defaultLayer),
       Layer.provide(Workflow.defaultLayer),
+      Layer.provide(Cardinal.defaultLayer),
+      Layer.provide(Goal.defaultLayer),
+      Layer.provide(Trace.defaultLayer),
+      Layer.provide(OpenSpec.defaultLayer),
     ),
 )
 
@@ -482,7 +490,7 @@ function isJsonSchemaObject(value: unknown): value is Record<string, unknown> {
 
 export const node = LayerNode.make({
   service: Service,
-  layer: layer.pipe(Layer.provide(Ripgrep.defaultLayer)),
+  layer: layer.pipe(Layer.provide(Ripgrep.defaultLayer), Layer.provide(OpenSpec.defaultLayer)),
   deps: [
     Config.node,
     Plugin.node,
@@ -510,6 +518,9 @@ export const node = LayerNode.make({
     Memory.node,
     Workflow.node,
     Scheduler.node,
+    Cardinal.node,
+    Goal.node,
+    Trace.node,
   ],
 })
 

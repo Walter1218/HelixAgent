@@ -194,6 +194,23 @@ export const Info = Schema.Struct({
       })),
     }),
   ).annotate({ description: "OpenSpec configuration for structured requirements and verification" }),
+  memory: Schema.optional(
+    Schema.Struct({
+      embedding: Schema.optional(
+        Schema.Struct({
+          enabled: Schema.optional(Schema.Boolean).annotate({
+            description: "Enable vector embedding for hybrid search (FTS + Vector). Defaults to false.",
+          }),
+          baseUrl: Schema.optional(Schema.String).annotate({
+            description: "Embedding API endpoint URL. Defaults to http://localhost:1234/v1/embeddings",
+          }),
+        model: Schema.optional(Schema.String).annotate({
+          description: "Embedding model name. Defaults to text-embedding-bge-m3",
+        }),
+        }),
+      ).annotate({ description: "Vector embedding configuration for hybrid memory search" }),
+    }),
+  ).annotate({ description: "Memory system configuration" }),
   webSearch: Schema.optional(
     Schema.Struct({
       provider: Schema.optional(Schema.Literals(["mimo", "exa", "parallel"])).annotate({

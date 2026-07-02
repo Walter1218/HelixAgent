@@ -8,6 +8,8 @@ import { hashContent } from "./semantic-hash"
 import { buildFtsQuery } from "./fts-query"
 import { parsePath, parseCcPath, type MemoryLocator } from "./paths"
 import { reconcileMemory, walkMemoryDir, walkCcRoot } from "./reconcile"
+import { Embedder } from "./embedder"
+import { VecStore, type VecSearchRow } from "./vec-store"
 import * as fs from "fs/promises"
 import path from "path"
 
@@ -65,6 +67,61 @@ function locatorFromPath(absPath: string): MemoryLocator | null {
   return parsePath(absPath) ?? parseCcPath(absPath)
 }
 
+// 混合排序权重配置
+const FTS_WEIGHT = 0.6
+const VEC_WEIGHT = 0.4
+const CO_OCCURRENCE_BOOST = 1.3
+
+// 混合排序函数
+function mergeScores(
+  ftsResults: Array<{ path: string; snippet: string; scope: string; scope_id: string; type: string }>,
+  vecResults: VecSearchRow[],
+  limit: number
+): Array<{ path: string; snippet: string; score: number; scope: string; scope_id: string; type: string }> {
+  // 排名归一化（FTS5 rank 是负数，越小越好）
+  const ftsRankMap = new Map(
+    ftsResults.map((r, i) => [r.path, 1 - i / Math.max(ftsResults.length, 1)])
+  )
+
+  // Vec 分数归一化（cosine 范围 [-1, 1] -> [0, 1]）
+  const vecNormMap = new Map(
+    vecResults.map(r => [r.memory_path, (r.score + 1) / 2])  // cosine -> [0, 1]
+  )
+
+  // 合并所有 path
+  const allPaths = new Set([...ftsRankMap.keys(), ...vecNormMap.keys()])
+
+  // 构建 snippet 映射
+  const snippetMap = new Map(ftsResults.map(r => [r.path, r.snippet]))
+  const metaMap = new Map(ftsResults.map(r => [r.path, r]))
+
+  // 计算融合分数
+  const merged = [...allPaths].map(path => {
+    const fts = ftsRankMap.get(path) ?? 0
+    const vec = vecNormMap.get(path) ?? 0
+    const base = fts * FTS_WEIGHT + vec * VEC_WEIGHT
+    const boost = (fts > 0 && vec > 0) ? CO_OCCURRENCE_BOOST : 1.0
+    const meta = metaMap.get(path)
+    return {
+      path,
+      snippet: snippetMap.get(path) ?? "",
+      score: base * boost,
+      scope: meta?.scope ?? "",
+      scope_id: meta?.scope_id ?? "",
+      type: meta?.type ?? "",
+    }
+  })
+
+  return merged.sort((a, b) => b.score - a.score).slice(0, limit)
+}
+
+function readEmbeddingConfig() {
+  const enabled = process.env.MEMORY_EMBEDDING_ENABLED !== "0" && process.env.MEMORY_EMBEDDING_ENABLED !== "false"
+  const baseUrl = process.env.MEMORY_EMBEDDING_BASE_URL ?? "http://localhost:1234/v1/embeddings"
+  const model = process.env.MEMORY_EMBEDDING_MODEL ?? "text-embedding-bge-m3"
+  return { enabled, baseUrl, model }
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -72,6 +129,15 @@ export const layer = Layer.effect(
     const globalPaths = yield* Global.Service
     const mimoRoot = path.join(globalPaths.data, "memory")
     const ccRoot = path.join(globalPaths.home, ".claude")
+
+    // 读取 embedding 配置（通过环境变量）
+    const embCfg = readEmbeddingConfig()
+    const embedder = new Embedder({
+      enabled: embCfg.enabled,
+      baseUrl: embCfg.baseUrl,
+      model: embCfg.model,
+    })
+    const vecStore = new VecStore(embedder, db)
 
     const reconcile = Effect.fn("Memory.reconcile")(function* () {
       const files = yield* Effect.promise(() => reconcileMemory({ mimo: mimoRoot, cc: ccRoot })).pipe(Effect.orDie)
@@ -105,6 +171,11 @@ export const layer = Layer.effect(
             )
             .pipe(Effect.orDie)
 
+          // 向量索引
+          if (vecStore.isEmbeddingEnabled) {
+            yield* vecStore.indexOne(absPath, body).pipe(Effect.ignore)
+          }
+
           return 1
         }),
         { concurrency: 5 },
@@ -122,6 +193,10 @@ export const layer = Layer.effect(
         const exists = yield* Effect.promise(() => fs.stat(p).then(() => true).catch(() => false))
         if (!exists) {
           yield* db.run(sql`DELETE FROM memory_fts WHERE path = ${p}`).pipe(Effect.orDie)
+          // 清理向量索引
+          if (vecStore.isEmbeddingEnabled) {
+            yield* db.run(sql`DELETE FROM memory_vec WHERE memory_path = ${p}`).pipe(Effect.ignore)
+          }
           pruned++
         }
       }
@@ -140,8 +215,10 @@ export const layer = Layer.effect(
 
       const whereClause = sql.join(conditions, sql` AND `)
       const limit = input.limit ?? 10
+      const topK = limit * 2  // 候选池放大
 
-      const rows = yield* db
+      // FTS 搜索
+      const ftsRows = yield* db
         .all<{
           path: string
           snippet: string
@@ -158,23 +235,41 @@ export const layer = Layer.effect(
           FROM memory_fts
           WHERE ${whereClause}
           ORDER BY rank
-          LIMIT ${limit}
+          LIMIT ${topK}
         `)
         .pipe(Effect.orDie)
 
-      return rows.map((row) => ({
-        ...row,
-        score: 0,
-      }))
+      // Vector 搜索（如果启用）
+      let vecResults: VecSearchRow[] = []
+      if (vecStore.isEmbeddingEnabled) {
+        vecResults = yield* vecStore.search(input.query, topK)
+      }
+
+      // 混合排序
+      if (vecResults.length === 0) {
+        return ftsRows.map((row) => ({
+          ...row,
+          score: 0,
+        }))
+      }
+
+      return mergeScores(ftsRows, vecResults, limit)
     })
 
     return Service.of({ reconcile, search })
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer), Layer.provide(Global.defaultLayer))
+export const defaultLayer = layer.pipe(
+  Layer.provide(Database.defaultLayer),
+  Layer.provide(Global.defaultLayer),
+)
 
-export const node = makeGlobalNode({ service: Service, layer, deps: [Database.node, Global.node] })
+export const node = makeGlobalNode({
+  service: Service,
+  layer,
+  deps: [Database.node, Global.node]
+})
 
 import { sql } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"

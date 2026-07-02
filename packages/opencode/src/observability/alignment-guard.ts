@@ -68,13 +68,15 @@ export function detectFileDrift(goal: string, files: Set<string>): string[] {
   return drifts
 }
 
-import { Effect, Context, Layer } from "effect"
+import { Effect, Context, Layer, Option } from "effect"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { Inbox } from "@/inbox/inbox"
 
 export interface Interface {
   readonly detectRabbitHole: (commands: string[]) => Effect.Effect<boolean>
   readonly detectDistraction: (command: string) => Effect.Effect<boolean>
   readonly detectFileDrift: (goal: string, files: Set<string>) => Effect.Effect<string[]>
+  readonly sendAlert: (alert: AlignmentAlert) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/AlignmentGuard") {}
@@ -82,10 +84,26 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Al
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
+    const maybeInbox = yield* Effect.serviceOption(Inbox.Service)
+
+    const sendAlert = Effect.fn("AlignmentGuard.sendAlert")(function* (alert: AlignmentAlert) {
+      const inbox = Option.getOrNull(maybeInbox)
+      if (inbox) {
+        yield* inbox.send({
+          receiver_session: alert.sessionID,
+          receiver_actor: "user",
+          sender_actor: "alignment-guard",
+          content: `<alignment-guard level="${alert.level}">\n${alert.reason}\n${alert.suggestion}\n</alignment-guard>`,
+          type: "alignment_alert",
+        }).pipe(Effect.ignore)
+      }
+    })
+
     return Service.of({
       detectRabbitHole: (cmds) => Effect.succeed(detectRabbitHole(cmds)),
       detectDistraction: (cmd) => Effect.succeed(detectDistraction(cmd)),
       detectFileDrift: (goal, files) => Effect.succeed(detectFileDrift(goal, files)),
+      sendAlert,
     })
   })
 )

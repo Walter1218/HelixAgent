@@ -1,8 +1,8 @@
 # HelixAgent 能力集成开发计划
 
-> 版本: 1.2
+> 版本: 1.3
 > 创建日期: 2026-07-01
-> 最后更新: 2026-07-01
+> 最后更新: 2026-07-02
 > 目标: 将未实现/未集成的能力完成开发并接入主链路
 
 ---
@@ -14,9 +14,9 @@
 | 阶段 | 内容 | 工时 | 优先级 | 依赖 | 状态 |
 |------|------|------|--------|------|------|
 | **TUI 外化** | Token/Mode/Goal 指示器 + Task/Actor 面板 | 3-4 天 | P0 | 底层 API | ✅ 已完成 |
-| **阶段一** | Memory Vector Store 启用 | 1-2 天 | P0 | Config.Service | 待开发 |
-| **阶段二** | History Service | 2-3 天 | P0 | Database.Service | 待开发 |
-| **阶段三** | Inbox + Distill Agent | 3 天 | P1 | 无 | 待开发 |
+| **阶段一** | Memory Vector Store 启用 | 1-2 天 | P0 | Config.Service | ✅ 已完成 |
+| **阶段二** | History Service | 2-3 天 | P0 | Database.Service | ✅ 已完成 |
+| **阶段三** | Inbox + Distill Agent | 3 天 | P1 | 无 | ✅ 已完成 |
 | **阶段四** | Judge + Max 模式 | 3-4 天 | P1 | 无 | 待开发 |
 | **暂缓** | Shadow Worktree | - | P3 | 无明确动机 | 暂缓 |
 | **暂缓** | Auto-Dev Scheduler | - | P3 | 外部依赖 | 暂缓 |
@@ -28,10 +28,10 @@
 | 能力 | 当前状态 | 目标状态 | 阶段 | 状态 |
 |------|---------|---------|------|------|
 | TUI 外化 | 已完成 Token/Mode/Goal/Task/Actor | 完全可用 | TUI | ✅ 已完成 |
-| Memory Vector Store | 骨架代码，Embedder+VecStore 已实现但 search 返回空 | 完全可用 | 一 | 待开发 |
-| History Service | 仅 schema 接口定义，无 Service 实现 | 完全可用 | 二 | 待开发 |
-| Inbox 系统 | 未实现 | 完全可用 | 三 | 待开发 |
-| Distill Agent | 仅 DISTILL_TASK prompt，无独立 agent 注册 | 完全可用 | 三 | 待开发 |
+| Memory Vector Store | 已实现 FTS + Vector 混合检索，默认启用 | 完全可用 | 一 | ✅ 已完成 |
+| History Service | 已实现 FTS 搜索，默认启用 | 完全可用 | 二 | ✅ 已完成 |
+| Inbox 系统 | 已实现 send/list/markRead/markAllRead | 完全可用 | 三 | ✅ 已完成 |
+| Distill Agent | 已实现 shouldAutoDistill + 独立 agent | 完全可用 | 三 | ✅ 已完成 |
 | Judge System | 仅 system-agents.ts 中 "judge" 标记 | 完全可用 | 四 | 待开发 |
 | Max 模式 | 未实现 | 完全可用 | 四 | 待开发 |
 | Shadow Worktree | 纯函数实现，未转 Effect Service | 暂缓 | - | 暂缓 |

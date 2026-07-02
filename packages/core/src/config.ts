@@ -104,6 +104,21 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   experimental: ConfigExperimental.Experimental.pipe(Schema.optional),
   providers: Schema.Record(Schema.String, ConfigProvider.Info).pipe(Schema.optional),
+  memory: Schema.Struct({
+    embedding: Schema.optional(
+      Schema.Struct({
+        enabled: Schema.optional(Schema.Boolean).annotate({
+          description: "Enable vector embedding for hybrid search (FTS + Vector). Defaults to false.",
+        }),
+        baseUrl: Schema.optional(Schema.String).annotate({
+          description: "Embedding API endpoint URL. Defaults to http://localhost:1234/v1/embeddings",
+        }),
+        model: Schema.optional(Schema.String).annotate({
+          description: "Embedding model name. Defaults to text-embedding-bge-m3",
+        }),
+      }),
+    ).annotate({ description: "Vector embedding configuration for hybrid memory search" }),
+  }).pipe(Schema.optional).annotate({ description: "Memory system configuration" }),
 }) {}
 
 export class Document extends Schema.Class<Document>("Config.Document")({

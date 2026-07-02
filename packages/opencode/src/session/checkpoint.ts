@@ -37,7 +37,7 @@ export const layer = Layer.effect(
   })
 )
 
-export const defaultLayer = layer
+export const defaultLayer = layer.pipe(Layer.provide(SessionStatus.defaultLayer))
 
 export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [SessionStatus.node] })
 

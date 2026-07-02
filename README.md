@@ -129,6 +129,36 @@ Supports all OpenAI-compatible APIs including:
 - GLM
 - And more
 
+#### Memory Configuration (Optional)
+
+Memory tool and vector embedding are enabled by default. To disable:
+
+```json
+{
+  "memory": {
+    "embedding": {
+      "enabled": false
+    }
+  }
+}
+```
+
+Or via environment variables:
+
+```bash
+# Disable memory tool
+OPENCODE_EXPERIMENTAL_MEMORY_TOOL=0
+
+# Disable vector embedding
+MEMORY_EMBEDDING_ENABLED=0
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `memory.embedding.enabled` | boolean | `true` | Enable vector embedding for hybrid search |
+| `memory.embedding.baseUrl` | string | `http://localhost:1234/v1/embeddings` | Embedding API endpoint |
+| `memory.embedding.model` | string | `text-embedding-bge-m3` | Embedding model name |
+
 ### Usage
 
 ```bash
@@ -158,14 +188,30 @@ Press `Tab` to switch between agents. Sub-agents are created on demand.
 
 ### 2. Persistent Memory System
 
-Cross-session memory based on SQLite FTS5:
+Cross-session memory based on SQLite FTS5 + Vector RAG:
 
 - **Project Memory** (`MEMORY.md`) - Persistent project knowledge, rules, architecture decisions
 - **Session Checkpoint** (`checkpoint.md`) - Structured state snapshots maintained by checkpoint-writer sub-agent
 - **Temporary Notes** (`notes.md`) - Agent's scratch pad
 - **Task Progress** (`tasks/<id>/progress.md`) - Per-task logs
+- **Vector Embedding** - Hybrid search with FTS + Vector (requires LM Studio with bge-m3 model)
 
 Memory is auto-injected on session resume, so agents don't need to re-learn project context.
+
+#### Hybrid Search (FTS + Vector)
+
+When vector embedding is enabled, memory search uses hybrid ranking:
+- **FTS (0.6 weight)** - Keyword matching with BM25
+- **Vector (0.4 weight)** - Semantic similarity with cosine
+- **Co-occurrence boost (1.3x)** - Documents matching both FTS and Vector get higher scores
+
+```bash
+# Enable vector embedding (requires LM Studio)
+export MEMORY_EMBEDDING_ENABLED=1
+
+# Start LM Studio and load text-embedding-bge-m3 model
+# Default API endpoint: http://localhost:1234/v1/embeddings
+```
 
 ### 3. Smart Context Management
 
