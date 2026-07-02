@@ -129,3 +129,30 @@ Use `Effect.cached` when multiple concurrent callers should share a single in-fl
 Use `EffectBridge` for native or external callbacks (`@parcel/watcher`, `node-pty`, native `fs.watch`, plugin callbacks, etc.) that need to re-enter Effect services with instance/workspace context.
 
 Plain async code should pass explicit context or stay inside an Effect fiber; do not add ambient instance context shims.
+
+## TUI Sidebar 开发
+
+当需要在 TUI 侧边栏新增展示模块时，遵循以下路径：
+
+1. **数据层**：确保 API 返回所需数据
+   - 数据已在服务端 → 扩展 API schema + handler
+   - 数据不存在 → 在服务层新增存储，再扩展 API
+
+2. **SDK 层**：确保 TUI 能获取数据
+   - endpoint 在 `packages/protocol/src/groups/` 中 → `bun run generate` 自动生成 SDK 方法
+   - endpoint 只在 server experimental HttpApi 中 → SDK 不会自动生成，需要迁移到 protocol
+
+3. **Plugin API 层**：确保插件能访问数据
+   - 在 `plugin/src/tui.ts` 的 `TuiState` 类型中新增方法
+   - 在 `tui/plugin/adapters.tsx` 中实现透传
+
+4. **渲染层**：创建 sidebar 插件
+   - 在 `tui/src/feature-plugins/sidebar/` 下新建文件
+   - 在 `builtins.ts` 中注册（order 决定展示顺序）
+   - 使用 `api.state.session.xxx()` 获取数据，不要直接发 HTTP 请求
+
+**关键约束：**
+- 不要修改 `AppLayer` 或新增 lazy load，避免黑屏风险
+- 新增 API endpoint 需要 SDK 支持时，必须在 `packages/protocol/src/groups/` 中定义
+- sidebar 插件 order：Context(100) > Trace(150) > MCP(200) > LSP(300) > Todo(400) > Files(500)
+- 详细设计参考 `specs/tui-judge-display.md`
