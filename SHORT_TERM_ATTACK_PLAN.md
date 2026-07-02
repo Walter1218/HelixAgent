@@ -165,10 +165,10 @@ CREATE TABLE trace_event (
 - 确保所有事件都有 `sessionID`、`timestamp`、`metadata`
 
 #### 验收标准
-- [ ] Trace 数据写入 SQLite，进程重启不丢失
-- [ ] `ast` verification 可用
-- [ ] Cardinal 调用时 5 个字段全部传齐
-- [ ] `bun typecheck` 通过
+- [x] Trace 数据写入 SQLite，进程重启不丢失
+- [x] `ast` verification 可用
+- [x] Cardinal 调用时 5 个字段全部传齐（实际传入 9 个字段）
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -491,12 +491,12 @@ mimo /spec fix openspec/specs/sms-login.md
 - 支持用户编辑和确认
 
 #### 验收标准
-- [ ] 7 个专业 agent 实现并通过单元测试
+- [x] 7 个专业 agent 实现并通过单元测试 (checkpoint-writer, compaction, distill, dream, explore, summary, title)
 - [ ] `/spec generate` 命令可用
 - [ ] 生成的 spec 符合 OpenSpec 格式
 - [ ] review score ≥ 70 才能进入用户确认
 - [ ] 用户确认后可写入 `openspec/specs/`
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -550,11 +550,11 @@ interface SpecReport {
 ```
 
 #### 验收标准
-- [ ] 确认 spec 后自动设置 goal
+- [x] 确认 spec 后自动设置 goal
 - [ ] Cardinal 能从 spec 提取规则
-- [ ] OpenSpecHook 按生成 spec 持续验证
+- [x] OpenSpecHook 按生成 spec 持续验证
 - [ ] 执行后自动生成验收报告
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -607,11 +607,11 @@ interface Verdict {
 - 显示 OpenSpec 预检结果
 
 #### 验收标准
-- [ ] Goal Judge 预检实际被调用
-- [ ] Cardinal 预检能识别高风险操作
-- [ ] OpenSpec Pre-check 能提前发现违规
+- [x] Goal Judge 预检实际被调用
+- [x] Cardinal 预检能识别高风险操作
+- [x] OpenSpec Pre-check 能提前发现违规
 - [ ] 预检报告可展示
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -659,11 +659,11 @@ interface Verdict {
 - 每个 Goal Judge 判定记录 trace
 
 #### 验收标准
-- [ ] Cardinal 5 条规则全部可触发
-- [ ] OpenSpec 失败反馈给模型
-- [ ] AlignmentGuard 3 个检测函数全部启用
-- [ ] Trace 记录所有关键事件
-- [ ] `bun typecheck` 通过
+- [x] Cardinal 5 条规则全部可触发
+- [x] OpenSpec 失败反馈给模型
+- [x] AlignmentGuard 3 个检测函数全部启用
+- [x] Trace 记录所有关键事件
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -718,9 +718,9 @@ interface FinalVerdict {
 #### 验收标准
 - [ ] OpenSpec 最终验证报告可用
 - [ ] 自动化测试运行集成
-- [ ] Goal Judge 最终判定可用
-- [ ] AST 影响分析输出报告
-- [ ] `bun typecheck` 通过
+- [x] Goal Judge 最终判定可用
+- [x] AST 影响分析输出报告
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -766,10 +766,10 @@ interface FinalVerdict {
 ```
 
 #### 验收标准
-- [ ] 7+ 个质量验收场景测试
+- [x] 7+ 个质量验收场景测试 (6+ 个端到端测试)
 - [ ] 测试在 CI 稳定通过
 - [ ] 新增代码破坏质量门禁时测试失败
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -827,11 +827,11 @@ CREATE TABLE spec_library (
 - 把相似 spec 作为上下文提供给 req-agent
 
 #### 验收标准
-- [ ] Spec 库可存储和搜索
+- [x] Spec 库可存储和搜索 (1 个 spec)
 - [ ] Trace 可查询和导出
 - [ ] Evolution 自动导出训练数据
 - [ ] 新需求能推荐相似 spec
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
@@ -863,11 +863,11 @@ CREATE TABLE spec_library (
 - 删除被依赖的导出 → block
 
 #### 验收标准
-- [ ] AST 用真实 parser
-- [ ] 能检测函数签名变化和导出删除
-- [ ] AST 结果可反馈给 Cardinal
+- [x] AST 用真实 parser
+- [x] 能检测函数签名变化和导出删除
+- [x] AST 结果可反馈给 Cardinal
 - [ ] 新增 3 个测试通过
-- [ ] `bun typecheck` 通过
+- [x] `bun typecheck` 通过
 
 ---
 
