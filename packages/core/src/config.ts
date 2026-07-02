@@ -108,7 +108,7 @@ export class Info extends Schema.Class<Info>("Config.Info")({
     embedding: Schema.optional(
       Schema.Struct({
         enabled: Schema.optional(Schema.Boolean).annotate({
-          description: "Enable vector embedding for hybrid search (FTS + Vector). Defaults to false.",
+          description: "Enable vector embedding for hybrid search (FTS + Vector). Defaults to true.",
         }),
         baseUrl: Schema.optional(Schema.String).annotate({
           description: "Embedding API endpoint URL. Defaults to http://localhost:1234/v1/embeddings",

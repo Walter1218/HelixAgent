@@ -749,3 +749,146 @@ sqlite3 opencode.db "SELECT reflection_type, COUNT(*), AVG(confidence) FROM refl
 # 查看知识库状态
 sqlite3 opencode.db "SELECT category, scope, COUNT(*), AVG(confidence) FROM knowledge_entry GROUP BY category, scope"
 ```
+
+---
+
+## 十一、当前 HelixAgent 改造评估
+
+### 11.1 改造成本
+
+| 维度 | 评估 |
+|------|------|
+| **代码量** | ~1500 行新代码 + ~100 行修改 |
+| **工时** | 16 天（约 3 周） |
+| **风险** | 低（主要是 processor.ts 改动） |
+| **复杂度** | 中（反思引擎是核心难点） |
+| **依赖** | 无外部依赖，可独立开发 |
+
+### 11.2 需要修改的模块
+
+| 模块 | 修改内容 | 改动量 | 风险 |
+|------|---------|--------|------|
+| **processor.ts** | 添加数据收集点（task_start, harness_trigger, tool_call, task_end） | 中 | 低 |
+| **prompt.ts** | 添加任务生命周期收集点 | 中 | 低 |
+| **app-runtime.ts** | 注册 Reflection.Service | 小 | 低 |
+| **registry.ts** | 注册 reflection tool（可选） | 小 | 低 |
+| **migration.gen.ts** | 注册新迁移 | 小 | 低 |
+
+### 11.3 需要新建的模块
+
+| 模块 | 文件 | 代码量 | 复杂度 |
+|------|------|--------|--------|
+| **数据收集器** | `src/reflection/collector.ts` | ~200 行 | 低 |
+| **模式识别** | `src/reflection/pattern.ts` | ~300 行 | 中 |
+| **因果分析** | `src/reflection/causal.ts` | ~250 行 | 中 |
+| **策略评估** | `src/reflection/strategy.ts` | ~200 行 | 中 |
+| **知识库** | `src/reflection/knowledge.ts` | ~300 行 | 中 |
+| **应用引擎** | `src/reflection/applier.ts` | ~200 行 | 中 |
+| **数据库迁移** | 4 个迁移文件 | ~200 行 | 低 |
+
+### 11.4 集成点
+
+```
+processor.ts
+├── task_start (line ~130)
+│   └── 收集: sessionID, agent, model, goal
+├── harness_trigger (line ~412, ~547)
+│   └── 收集: cardinal.evaluate, openSpecHook.check
+├── tool_call (line ~600)
+│   └── 收集: tool_name, input, output, duration
+└── task_end (line ~640)
+    └── 收集: outcome, duration, tokens
+
+prompt.ts
+├── runLoop 开始 (line ~1137)
+│   └── 创建 task_execution 记录
+└── runLoop 结束 (line ~1755)
+    └── 更新 task_execution 结果
+```
+
+### 11.5 风险评估
+
+| 风险 | 影响 | 概率 | 缓解措施 |
+|------|------|------|---------|
+| **processor.ts 改动** | 可能影响主链路 | 中 | 添加收集点时使用 Effect.ignore |
+| **性能影响** | 数据收集增加延迟 | 低 | 异步写入，批量处理 |
+| **数据库迁移** | 可能需要重建表 | 低 | 使用 IF NOT EXISTS |
+| **集成复杂度** | 与现有系统冲突 | 低 | 使用独立模块，松耦合 |
+
+---
+
+## 十二、当前状态查漏补缺
+
+### 12.1 已修复问题
+
+| # | 问题 | 修复方案 | 状态 |
+|---|------|---------|------|
+| 1 | History tool 未默认启用 | 改为 `Config.withDefault(true)` | ✅ 已修复 |
+| 2 | 配置默认值不一致 | config.ts 和 service.ts 统一为 `true` | ✅ 已修复 |
+
+### 12.2 待修复问题
+
+| # | 问题 | 严重度 | 修复建议 |
+|---|------|--------|---------|
+| 1 | MaxMode 简化实现 | 中 | 集成真实 LLM 调用 |
+| 2 | Judge Agent 检查不完整 | 低 | 补全 8 项检查 |
+| 3 | History 测试不足 | 低 | 添加更多测试用例 |
+| 4 | reflection 模块未实现 | 低 | 按设计文档实现 |
+
+### 12.3 代码质量状态
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| **类型检查** | ✅ | 0 errors |
+| **测试覆盖** | ✅ | 63 个测试，47 通过，16 跳过 |
+| **主链路集成** | ✅ | 所有 harness 层正确集成 |
+| **配置系统** | ✅ | 默认值已统一 |
+| **数据库迁移** | ✅ | 5 个迁移文件正确注册 |
+
+### 12.4 测试覆盖详情
+
+```
+Memory 测试: 10 个文件
+History 测试: 1 个文件
+Inbox 测试: 2 个文件
+Judge 测试: 1 个文件
+E2E 测试: 6 个文件
+
+总计: 63 个测试，47 通过，16 跳过，0 失败
+```
+
+### 12.5 主链路集成验证
+
+| Harness 层 | 集成点 | 验证状态 |
+|------------|--------|---------|
+| **Memory.Service** | tool/memory.ts | ✅ |
+| **History.Service** | processor.ts, prompt.ts | ✅ |
+| **Inbox.Service** | alignment-guard.ts | ✅ |
+| **JudgeAgent** | max-mode.ts | ✅ |
+| **MaxMode** | prompt.ts | ✅ |
+| **OpenSpecHook** | processor.ts | ✅ |
+| **AlignmentGuard** | processor.ts, prompt.ts | ✅ |
+| **Cardinal** | processor.ts | ✅ |
+| **Trace** | processor.ts | ✅ |
+
+---
+
+## 十三、下一步建议
+
+### 13.1 短期（1-2 周）
+
+1. **修复 MaxMode 简化实现** - 集成真实 LLM 调用
+2. **补全 Judge Agent 检查** - 实现完整的 8 项检查
+3. **添加 History 测试** - 增加测试覆盖
+
+### 13.2 中期（3-4 周）
+
+1. **实现 reflection 模块** - 按设计文档实现反思机制
+2. **集成数据收集** - 在 processor.ts 和 prompt.ts 添加收集点
+3. **实现反思引擎** - 模式识别、因果分析、策略评估
+
+### 13.3 长期（1-2 月）
+
+1. **完善反思机制** - 实现知识库和应用引擎
+2. **A/B 测试** - 验证反思效果
+3. **持续优化** - 根据实际效果调整
