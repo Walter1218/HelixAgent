@@ -17,7 +17,7 @@
 | **阶段一** | Memory Vector Store 启用 | 1-2 天 | P0 | Config.Service | ✅ 已完成 |
 | **阶段二** | History Service | 2-3 天 | P0 | Database.Service | ✅ 已完成 |
 | **阶段三** | Inbox + Distill Agent | 3 天 | P1 | 无 | ✅ 已完成 |
-| **阶段四** | Judge + Max 模式 | 3-4 天 | P1 | 无 | 待开发 |
+| **阶段四** | Judge + Max 模式 | 3-4 天 | P1 | 无 | ✅ 已完成 |
 | **暂缓** | Shadow Worktree | - | P3 | 无明确动机 | 暂缓 |
 | **暂缓** | Auto-Dev Scheduler | - | P3 | 外部依赖 | 暂缓 |
 
@@ -32,8 +32,8 @@
 | History Service | 已实现 FTS 搜索，默认启用 | 完全可用 | 二 | ✅ 已完成 |
 | Inbox 系统 | 已实现 send/list/markRead/markAllRead | 完全可用 | 三 | ✅ 已完成 |
 | Distill Agent | 已实现 shouldAutoDistill + 独立 agent | 完全可用 | 三 | ✅ 已完成 |
-| Judge System | 仅 system-agents.ts 中 "judge" 标记 | 完全可用 | 四 | 待开发 |
-| Max 模式 | 未实现 | 完全可用 | 四 | 待开发 |
+| Judge System | 已实现 8 项启发式检查 | 完全可用 | 四 | ✅ 已完成 |
+| Max 模式 | 已实现候选生成 + Judge 评估 | 完全可用 | 四 | ✅ 已完成 |
 | Shadow Worktree | 纯函数实现，未转 Effect Service | 暂缓 | - | 暂缓 |
 | Auto-Dev Scheduler | 未实现 | 暂缓 | - | 暂缓 |
 

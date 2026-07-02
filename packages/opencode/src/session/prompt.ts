@@ -75,6 +75,7 @@ import { CardinalPreflight } from "@/session/preflight"
 import { OpenSpecPrecheck } from "@/openspec/precheck"
 import { Trace } from "@/trace/trace"
 import { History } from "@/history/service"
+import { MaxMode } from "@/session/max-mode"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -172,6 +173,7 @@ export const layer = Layer.effect(
     const maybeOpenSpecPrecheck = yield* Effect.serviceOption(OpenSpecPrecheck.Service)
     const trace = yield* Trace.Service
     const history = yield* History.Service
+    const maybeMaxMode = yield* Effect.serviceOption(MaxMode.Service)
     const maybeScheduler = yield* Effect.serviceOption(Scheduler.Service)
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
@@ -1244,11 +1246,20 @@ export const layer = Layer.effect(
           const agent = yield* agents.get(lastUser.agent)
           if (!agent) {
             const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
-            const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
+            const hint = available.length ? ` Available agents: ${available.join(", ")}"` : ""
             const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
             yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
+
+          // Max 模式判断
+          const isMaxMode = agent.name === "max" || lastUser.agent === "max"
+          if (isMaxMode && maybeMaxMode._tag === "Some") {
+            yield* Effect.logInfo("max mode activated", { "session.id": sessionID })
+            // Max 模式由 MaxMode.Service 处理
+            // 实际实现需要调用 maxMode.runMaxStep()
+          }
+
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
@@ -1940,6 +1951,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(ModeRegistry.defaultLayer),
     Layer.provide(AutoDream.defaultLayer),
     Layer.provide(SessionCheckpoint.defaultLayer),
+    Layer.provide(MaxMode.defaultLayer),
   ),
 )
 const ModelRef = Schema.Struct({

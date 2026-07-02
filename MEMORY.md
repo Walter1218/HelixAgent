@@ -428,7 +428,7 @@ Two parallel implementations:
 | **阶段一** | Memory Vector Store 启用 | ✅ Completed (2026-07-02) |
 | **阶段二** | History Service | ✅ Completed (2026-07-02) |
 | **阶段三** | Inbox + Distill Agent | ✅ Completed (2026-07-02) |
-| **阶段四** | Judge + Max 模式 | 🔲 待开发 (P1) |
+| **阶段四** | Judge + Max 模式 | ✅ Completed (2026-07-02) |
 | **暂缓** | Shadow Worktree | ⏸️ 暂缓 (P3) |
 
 ---
@@ -537,8 +537,10 @@ MEMORY_EMBEDDING_MODEL=text-embedding-bge-m3
   - History Service: Completed (FTS search, inject to user message)
   - Inbox System: Completed (send/list/markRead/markAllRead)
   - Distill Agent: Completed (shouldAutoDistill + independent agent)
+  - Judge System: Completed (8 heuristic checks)
+  - Max Mode: Completed (candidate generation + Judge evaluation)
   - Type checking: Passing (0 errors)
-  - Next priorities: Judge + Max (P1)
+  - All phases completed!
 
 ### Build Session: "helix agent 现状、实现质量与待办功能排查"
 - **Session ID**: `ses_0dd31ca72ffetA1WpKffEPUQpp`
