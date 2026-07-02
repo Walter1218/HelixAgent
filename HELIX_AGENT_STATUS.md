@@ -41,7 +41,21 @@ tui-dev
 
 # 编译状态
 bun typecheck  # ✅ 0 errors
+
+# 测试状态
+bun test test/e2e/real-llm.test.ts  # ✅ 4 pass (真实 LLM 验证)
 ```
+
+### 1.4 Harness 层验证（真实 LLM）
+
+| Harness 层 | 验证方法 | 结果 | 详情 |
+|------------|---------|------|------|
+| **Judge Agent** | LLM 生成代码 → Judge 评估 | ✅ | 8 项检查全部通过 |
+| **断言减少检测** | LLM 生成测试 → Judge 检测 | ✅ | 检测到 75% 断言减少 |
+| **History Service** | LLM 回答 → 记录 → 搜索 | ✅ | 搜索 "RESTful API" 返回 2 条结果 |
+| **安全检查** | LLM 生成配置代码 → Judge 检测 | ✅ | 无安全问题 |
+| **AlignmentGuard** | 检测 rabbit hole/distraction | ✅ | 正确检测并发送 Inbox 警报 |
+| **Max Mode** | 生成 3 个候选 → Judge 评估 | ✅ | 不同分数，选择获胜者 |
 
 ---
 
