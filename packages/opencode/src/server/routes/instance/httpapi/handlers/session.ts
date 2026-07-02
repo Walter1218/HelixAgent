@@ -20,6 +20,7 @@ import { ActorRegistry } from "@/actor/registry"
 import { Metrics } from "@/metrics/metrics"
 import { TokenTracker } from "@/token/tracker"
 import { ModeRegistry } from "@/session/mode-registry"
+import { Trace } from "@/trace/trace"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
@@ -71,6 +72,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const metricsSvc = yield* Metrics.Service
     const tokenTrackerSvc = yield* TokenTracker.Service
     const modeRegistrySvc = yield* ModeRegistry.Service
+    const traceSvc = yield* Trace.Service
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       return yield* session.list({
@@ -445,6 +447,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* tokenTrackerSvc.getSessionStats(ctx.params.sessionID)
     })
 
+    const trace = Effect.fn("SessionHttpApi.trace")(function* (ctx: { params: { sessionID: SessionID } }) {
+      yield* requireSession(ctx.params.sessionID)
+      return yield* traceSvc.getTraces(ctx.params.sessionID)
+    })
+
     return handlers
       .handle("list", list)
       .handle("status", status)
@@ -478,5 +485,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("actor", actor)
       .handle("metrics", metrics)
       .handle("token", token)
+      .handle("trace", trace)
   }),
 )

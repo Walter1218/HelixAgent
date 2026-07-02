@@ -107,6 +107,7 @@ export const SessionPaths = {
   actor: `${root}/:sessionID/actor`,
   metrics: `${root}/:sessionID/metrics`,
   token: `${root}/:sessionID/token`,
+  trace: `${root}/:sessionID/trace`,
 } as const
 
 export const SessionApi = HttpApi.make("session")
@@ -577,6 +578,32 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.token",
             summary: "Get session token stats",
             description: "Retrieve token usage statistics for a session.",
+          }),
+        ),
+        HttpApiEndpoint.get("trace", SessionPaths.trace, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Array(
+              Schema.Struct({
+                id: Schema.String,
+                type: Schema.String,
+                name: Schema.String,
+                status: Schema.String,
+                duration: Schema.optional(Schema.Number),
+                timestamp: Schema.Number,
+                parentId: Schema.optional(Schema.String),
+                metadata: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+              }),
+            ),
+            "Session traces",
+          ),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.trace",
+            summary: "Get session traces",
+            description: "Retrieve trace events for a session.",
           }),
         ),
       )
