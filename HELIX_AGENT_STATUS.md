@@ -57,6 +57,20 @@ bun test test/e2e/real-llm.test.ts  # ✅ 4 pass (真实 LLM 验证)
 | **AlignmentGuard** | 检测 rabbit hole/distraction | ✅ | 正确检测并发送 Inbox 警报 |
 | **Max Mode** | 生成 3 个候选 → Judge 评估 | ✅ | 不同分数，选择获胜者 |
 
+### 1.5 SHORT_TERM_ATTACK_PLAN 完成状态
+
+| Phase | 内容 | 状态 | 完成度 | 待完成 |
+|-------|------|------|--------|--------|
+| **Phase 0** | 基础设施 | ✅ 已完成 | 100% | - |
+| **Phase 1** | 多智能体 Spec 生成 MVP | ⚠️ 部分完成 | 30% | /spec generate 命令 |
+| **Phase 2** | Spec 生成与执行链路打通 | ⚠️ 部分完成 | 40% | 自动生成验收报告 |
+| **Phase 3** | 执行前验收层 | ✅ 已完成 | 80% | 预检报告展示 |
+| **Phase 4** | 完整执行中监控 | ✅ 已完成 | 100% | - |
+| **Phase 5** | 执行后验收与判定 | ⚠️ 部分完成 | 60% | OpenSpec 最终验证报告 |
+| **Phase 6** | 端到端质量测试体系 | ✅ 已完成 | 70% | CI 稳定通过 |
+| **Phase 7** | Spec 库与持续改进 | ⚠️ 部分完成 | 20% | Trace 查询导出 |
+| **Phase 8** | AST 语义升级 | ✅ 已完成 | 80% | 新增测试 |
+
 ---
 
 ## 二、范围定义

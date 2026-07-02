@@ -567,6 +567,19 @@ MEMORY_EMBEDDING_MODEL=text-embedding-bge-m3
   - Type checking: Passing (0 errors)
   - 51+ tests passing
 
+### SHORT_TERM_ATTACK_PLAN 完成状态 (2026-07-02)
+| Phase | 内容 | 状态 | 完成度 |
+|-------|------|------|--------|
+| **Phase 0** | 基础设施 | ✅ 已完成 | 100% |
+| **Phase 1** | 多智能体 Spec 生成 MVP | ⚠️ 部分完成 | 30% |
+| **Phase 2** | Spec 生成与执行链路打通 | ⚠️ 部分完成 | 40% |
+| **Phase 3** | 执行前验收层 | ✅ 已完成 | 80% |
+| **Phase 4** | 完整执行中监控 | ✅ 已完成 | 100% |
+| **Phase 5** | 执行后验收与判定 | ⚠️ 部分完成 | 60% |
+| **Phase 6** | 端到端质量测试体系 | ✅ 已完成 | 70% |
+| **Phase 7** | Spec 库与持续改进 | ⚠️ 部分完成 | 20% |
+| **Phase 8** | AST 语义升级 | ✅ 已完成 | 80% |
+
 ### Harness Layer Verification (2026-07-02)
 - **Test File**: `test/e2e/real-llm.test.ts`
 - **Real LLM Calls**: MiMo V2.5 Pro via token-plan API
