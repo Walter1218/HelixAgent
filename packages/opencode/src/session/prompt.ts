@@ -1934,6 +1934,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Image.defaultLayer),
     Layer.provide(Trace.defaultLayer),
     Layer.provide(History.defaultLayer),
+  ).pipe(
     Layer.provide(AlignmentGuard.defaultLayer),
     Layer.provide(Goal.defaultLayer),
     Layer.provide(ModeRegistry.defaultLayer),
