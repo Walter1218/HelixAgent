@@ -1079,7 +1079,7 @@ export const layer = Layer.effect(
       // 搜索相关历史消息并注入到用户消息
       const userText = parts.find(p => p.type === "text")?.text
       if (userText) {
-        const historyResults = yield* history.search({ query: userText, limit: 3 }).pipe(Effect.catchAll(() => Effect.succeed([])))
+        const historyResults = yield* history.search({ query: userText, limit: 3 }).pipe(Effect.catch(() => Effect.succeed([])))
         if (historyResults.length > 0) {
           const historyContext = historyResults
             .map((r: any) => `- [${r.kind}] ${r.snippet}`)
@@ -1939,8 +1939,6 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(ModeRegistry.defaultLayer),
     Layer.provide(AutoDream.defaultLayer),
     Layer.provide(SessionCheckpoint.defaultLayer),
-  ).pipe(
-    Layer.provide(History.defaultLayer),
   ),
 )
 const ModelRef = Schema.Struct({
