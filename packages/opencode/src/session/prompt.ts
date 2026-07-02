@@ -1256,8 +1256,22 @@ export const layer = Layer.effect(
           const isMaxMode = agent.name === "max" || lastUser.agent === "max"
           if (isMaxMode && maybeMaxMode._tag === "Some") {
             yield* Effect.logInfo("max mode activated", { "session.id": sessionID })
-            // Max 模式由 MaxMode.Service 处理
-            // 实际实现需要调用 maxMode.runMaxStep()
+            const maxMode = maybeMaxMode.value
+            const maxResult = yield* maxMode.runMaxStep({
+              sessionID,
+              messages: msgs,
+              model,
+              candidates: 3,
+            }).pipe(Effect.catch(() => Effect.succeed(null)))
+            
+            if (maxResult) {
+              yield* Effect.logInfo("max mode completed", {
+                "session.id": sessionID,
+                candidates: maxResult.candidates.length,
+                winner: maxResult.winner.id,
+                score: maxResult.winner.score,
+              })
+            }
           }
 
           const maxSteps = agent.steps ?? Infinity
