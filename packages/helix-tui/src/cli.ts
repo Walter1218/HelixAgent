@@ -63,7 +63,7 @@ export async function run(args: {
 }) {
   const { TuiConfig } = await import("@opencode-ai/tui/config")
   const { run: runLayer } = await import("./layer")
-  const { createLegacyTuiPluginHost } = await import("@opencode-ai/tui/plugin/runtime")
+  const { createLegacyTuiPluginHost } = await import("@opencode-ai/opencode/plugin/tui/runtime")
 
   const next = resolveDirectory(args.project)
   const file = await target()

@@ -1,6 +1,7 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import path from "path"
+import fs from "fs"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import os from "os"
 import { SessionID, MessageID, PartID } from "./schema"
@@ -68,6 +69,11 @@ import { Team } from "@/team/team"
 import { AST } from "@/ast/ast"
 import { Evolution } from "@/evolution/evolution"
 import { Scheduler } from "@/scheduler/scheduler"
+import { SpecReport } from "@/openspec/report"
+import { GoalJudge } from "@/session/goal-judge"
+import { CardinalPreflight } from "@/session/preflight"
+import { OpenSpecPrecheck } from "@/openspec/precheck"
+import { Trace } from "@/trace/trace"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -159,6 +165,11 @@ export const layer = Layer.effect(
     const maybeTeam = yield* Effect.serviceOption(Team.Service)
     const maybeAST = yield* Effect.serviceOption(AST.Service)
     const maybeEvolution = yield* Effect.serviceOption(Evolution.Service)
+    const maybeSpecReport = yield* Effect.serviceOption(SpecReport.Service)
+    const maybeGoalJudge = yield* Effect.serviceOption(GoalJudge.Service)
+    const maybeCardinalPreflight = yield* Effect.serviceOption(CardinalPreflight.Service)
+    const maybeOpenSpecPrecheck = yield* Effect.serviceOption(OpenSpecPrecheck.Service)
+    const trace = yield* Trace.Service
     const maybeScheduler = yield* Effect.serviceOption(Scheduler.Service)
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
@@ -1378,8 +1389,22 @@ export const layer = Layer.effect(
             const evolutionConfig = yield* modeRegistry.getEvolutionConfig(lastUser.agent)
             if (evolutionConfig.judgeEnabled) {
               const reactCount = yield* goal.bumpReact(sessionID)
+              yield* trace.emit({
+                id: `goal-eval-${Date.now()}`,
+                type: "decision",
+                name: "goal.evaluate",
+                status: "success",
+                metadata: { sessionID, condition: currentGoal.condition, react: reactCount },
+              }).pipe(Effect.catch(() => Effect.void))
               if (reactCount >= 12) {
                 yield* goal.clear(sessionID)
+                yield* trace.emit({
+                  id: `goal-limit-${Date.now()}`,
+                  type: "decision",
+                  name: "goal.limit_reached",
+                  status: "failed",
+                  metadata: { sessionID, react: reactCount },
+                }).pipe(Effect.catch(() => Effect.void))
                 break
               }
             }
@@ -1403,7 +1428,109 @@ export const layer = Layer.effect(
         const isRabbitHole = yield* alignment.detectRabbitHole(recentCommands)
         if (isRabbitHole) {
           yield* Effect.logWarning("alignment: rabbit hole detected", { "session.id": sessionID })
+          yield* trace.emit({
+            id: `alignment-rabbit-${Date.now()}`,
+            type: "decision",
+            name: "alignment.rabbit_hole",
+            status: "failed",
+            metadata: { sessionID, commands: recentCommands.slice(-5) },
+          }).pipe(Effect.catch(() => Effect.void))
         }
+
+        // Phase 2.4: Generate SpecReport if spec files exist
+        yield* Option.match(maybeSpecReport, {
+          onNone: () => Effect.void,
+          onSome: (specReport) =>
+            Effect.gen(function* () {
+              const specDir = path.join(process.cwd(), "openspec", "specs")
+              const specFiles = yield* Effect.sync(() => {
+                try {
+                  return fs.readdirSync(specDir).filter((f) => f.endsWith(".md")).map((f) => path.join(specDir, f))
+                } catch {
+                  return []
+                }
+              })
+              if (specFiles.length > 0) {
+                // Generate report for the most recent spec
+                const latestSpec = specFiles[specFiles.length - 1]
+                const report = yield* specReport.generateReport(latestSpec, sessionID).pipe(Effect.catch(() => Effect.succeed(null)))
+                if (report) {
+                  yield* Effect.logInfo("spec: validation report generated", {
+                    "session.id": sessionID,
+                    specTitle: report.specTitle,
+                    approved: report.overallApproved,
+                    achieved: report.achievedRequirements.length,
+                    missing: report.missingRequirements.length,
+                  })
+                  yield* trace.emit({
+                    id: `spec-report-${Date.now()}`,
+                    type: "decision",
+                    name: "spec.report",
+                    status: report.overallApproved ? "success" : "failed",
+                    metadata: {
+                      sessionID,
+                      specTitle: report.specTitle,
+                      approved: report.overallApproved,
+                      achieved: report.achievedRequirements.length,
+                      missing: report.missingRequirements.length,
+                    },
+                  }).pipe(Effect.catch(() => Effect.void))
+                }
+              }
+            }).pipe(Effect.catch(() => Effect.void)),
+        })
+
+        // Phase 5.3: Goal Judge final verdict
+        const finalGoal = yield* goal.get(sessionID)
+        if (finalGoal) {
+          yield* Option.match(maybeGoalJudge, {
+            onNone: () => Effect.void,
+            onSome: (judge) =>
+              Effect.gen(function* () {
+                const verdict = yield* judge.preflight({ sessionID, condition: finalGoal.condition }).pipe(Effect.catch(() => Effect.succeed(null)))
+                if (verdict) {
+                  yield* trace.emit({
+                    id: `goal-final-${Date.now()}`,
+                    type: "decision",
+                    name: "goal.final_verdict",
+                    status: verdict.ok ? "success" : "failed",
+                    metadata: { sessionID, condition: finalGoal.condition, verdict },
+                  }).pipe(Effect.catch(() => Effect.void))
+                }
+              }).pipe(Effect.catch(() => Effect.void)),
+          })
+        }
+
+        // Phase 5.4: AST impact analysis
+        yield* Option.match(maybeAST, {
+          onNone: () => Effect.void,
+          onSome: (ast) =>
+            Effect.gen(function* () {
+              const changedFiles = yield* ast.getChangedFiles(sessionID)
+              if (changedFiles.length > 0) {
+                const rootPath = process.cwd()
+                const blastRadius = yield* ast.analyzeChangedFiles(changedFiles, rootPath).pipe(Effect.catch(() => Effect.succeed([])))
+                if (blastRadius.length > 0) {
+                  yield* Effect.logInfo("ast: impact analysis", {
+                    "session.id": sessionID,
+                    changedFiles: changedFiles.length,
+                    affectedFiles: blastRadius.length,
+                  })
+                  yield* trace.emit({
+                    id: `ast-impact-${Date.now()}`,
+                    type: "decision",
+                    name: "ast.impact_analysis",
+                    status: "success",
+                    metadata: {
+                      sessionID,
+                      changedFiles,
+                      blastRadius: blastRadius.map((r) => ({ file: r.file, depth: r.depth })),
+                    },
+                  }).pipe(Effect.catch(() => Effect.void))
+                }
+              }
+            }).pipe(Effect.catch(() => Effect.void)),
+        })
 
         yield* checkpoint.tryStartCheckpointWriter(sessionID).pipe(Effect.ignore, Effect.forkIn(scope))
 
@@ -1494,6 +1621,78 @@ export const layer = Layer.effect(
     const runLoop: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.run")(
       function* (sessionID: SessionID) {
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
+
+        // Phase 3: Pre-execution checks
+        // 3.1 Goal Judge preflight
+        yield* Option.match(maybeGoalJudge, {
+          onNone: () => Effect.void,
+          onSome: (judge) =>
+            Effect.gen(function* () {
+              const currentGoal = yield* goal.get(sessionID)
+              if (currentGoal) {
+                const verdict = yield* judge.preflight({
+                  sessionID,
+                  condition: currentGoal.condition,
+                })
+                if (!verdict.ok) {
+                  yield* Effect.logWarning("goal: preflight check failed", {
+                    "session.id": sessionID,
+                    reason: verdict.reason,
+                    impossible: verdict.impossible,
+                  })
+                }
+              }
+            }).pipe(Effect.catch(() => Effect.void)),
+        })
+
+        // 3.2 Cardinal preflight
+        yield* Option.match(maybeCardinalPreflight, {
+          onNone: () => Effect.void,
+          onSome: (preflight) =>
+            Effect.gen(function* () {
+              const report = yield* preflight.preflight({ sessionID })
+              if (report.recommendation !== "proceed") {
+                yield* Effect.logWarning("cardinal: preflight check", {
+                  "session.id": sessionID,
+                  recommendation: report.recommendation,
+                  risks: report.risks.length,
+                  summary: report.summary,
+                })
+              }
+            }).pipe(Effect.catch(() => Effect.void)),
+        })
+
+        // 3.3 OpenSpec precheck
+        yield* Option.match(maybeOpenSpecPrecheck, {
+          onNone: () => Effect.void,
+          onSome: (precheck) =>
+            Effect.gen(function* () {
+              // Get planned files from recent messages
+              const msgs = yield* MessageV2.filterCompactedEffect(sessionID).pipe(
+                Effect.provideService(Database.Service, database),
+              )
+              const recentFiles = msgs
+                .slice(-5)
+                .flatMap((m) => m.parts.filter((p) => p.type === "tool"))
+                .map((p) => (p as any).state?.input?.path)
+                .filter(Boolean)
+
+              if (recentFiles.length > 0) {
+                const report = yield* precheck.precheck({
+                  sessionID,
+                  plannedFiles: recentFiles,
+                })
+                if (report.hasViolations) {
+                  yield* Effect.logWarning("openspec: precheck violations detected", {
+                    "session.id": sessionID,
+                    violations: report.violations.length,
+                    affectedSpecs: report.affectedSpecs,
+                  })
+                }
+              }
+            }).pipe(Effect.catch(() => Effect.void)),
+        })
+
         const run = yield* Option.match(maybeWorkflow, {
           onNone: () => Effect.succeed(Option.none<Workflow.WorkflowRun>()),
           onSome: (workflow) =>
@@ -1851,7 +2050,8 @@ export const node = LayerNode.make({
     ModeRegistry.node,
     AutoDream.node,
     SessionCheckpoint.node,
-  ],
+    Trace.node,
+  ] as any,
 })
 
 export * as SessionPrompt from "./prompt"

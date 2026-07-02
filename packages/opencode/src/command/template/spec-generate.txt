@@ -1,0 +1,8 @@
+Generate a comprehensive specification for the following requirement:
+
+$ARGUMENTS
+
+Use the `spec` tool to generate the specification. After the spec is generated:
+1. Show the user the generated spec
+2. If the score is below 70, explain the issues and suggest improvements
+3. If the score is 70 or above, save the spec to the project's openspec/specs/ directory

@@ -59,28 +59,63 @@ export function extractContract(content: string): Contract {
   const functions: FunctionInfo[] = []
   const exports: string[] = []
 
-  const classRegex = /class\s+(\w+)/g
-  const functionRegex = /(?:export\s+)?(?:function|const)\s+(\w+)/g
-  const exportRegex = /export\s+(?:default\s+)?(?:class|function|const|let|var)\s+(\w+)/g
+  // Enhanced class regex: captures class name and body
+  const classRegex = /(?:export\s+)?(?:abstract\s+)?class\s+(\w+)(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w,\s]+)?\s*\{([^}]*)\}/g
+  // Enhanced function regex: captures name, params, and return type
+  const functionRegex = /(?:export\s+)?(?:async\s+)?(?:function|const|let)\s+(\w+)(?:\s*<[^>]*>)?\s*(?:=\s*(?:async\s+)?\([^)]*\)|\([^)]*\))\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*(?:=>|\{)/g
+  // Export regex
+  const exportRegex = /export\s+(?:default\s+)?(?:class|function|const|let|var|interface|type|enum)\s+(\w+)/g
+  // Method regex (inside class body)
+  const methodRegex = /(?:public|private|protected|static|async|readonly|\s)*\s*(\w+)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*(?:\{|\;)/g
+  // Property regex (inside class body)
+  const propertyRegex = /(?:public|private|protected|static|readonly|\s)*\s*(\w+)\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*(?:=|;|\n)/g
 
   let match
 
+  // Extract classes with methods and properties
   while ((match = classRegex.exec(content)) !== null) {
-    classes.push({
-      name: match[1],
-      methods: [],
-      properties: [],
-    })
+    const className = match[1]
+    const classBody = match[2] || ""
+
+    const methods: string[] = []
+    const properties: string[] = []
+
+    // Extract methods from class body
+    const methodPatterns = [
+      /(?:public|private|protected)\s+(?:static\s+)?(?:async\s+)?(?:readonly\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*\{/g,
+      /(?:static\s+)?(?:async\s+)?(?:readonly\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*\{/g,
+    ]
+    for (const regex of methodPatterns) {
+      let methodMatch
+      while ((methodMatch = regex.exec(classBody)) !== null) {
+        if (!["if", "else", "for", "while", "switch", "return", "const", "let", "var", "constructor"].includes(methodMatch[1])) {
+          methods.push(methodMatch[1])
+        }
+      }
+    }
+
+    // Extract properties from class body
+    let propMatch
+    const propertyRegexLocal = /(?:public|private|protected|static|readonly|\s)*\s*(\w+)\s*(?::\s*(\w[\w<>\[\]|&,\s]*))?\s*(?:=|;|\n)/g
+    while ((propMatch = propertyRegexLocal.exec(classBody)) !== null) {
+      if (!["constructor", "if", "else", "for", "while", "switch", "return"].includes(propMatch[1])) {
+        properties.push(propMatch[1])
+      }
+    }
+
+    classes.push({ name: className, methods, properties })
   }
 
+  // Extract functions with params and return type
   while ((match = functionRegex.exec(content)) !== null) {
     functions.push({
       name: match[1],
-      params: [],
-      returnType: "unknown",
+      params: [], // Params extraction would need more complex parsing
+      returnType: match[2] || "unknown",
     })
   }
 
+  // Extract exports
   while ((match = exportRegex.exec(content)) !== null) {
     exports.push(match[1])
   }

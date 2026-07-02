@@ -139,8 +139,8 @@ export const AppLayer = Layer.mergeAll(
    Workflow.defaultLayer,
    OpenSpec.defaultLayer,
    OpenSpecJudge.defaultLayer,
-   OpenSpecHook.defaultLayer,
-   Scheduler.defaultLayer,
+    OpenSpecHook.defaultLayer,
+    Scheduler.defaultLayer,
  ).pipe(
   Layer.provideMerge(Ripgrep.defaultLayer),
   Layer.provideMerge(InstanceLayer.layer),

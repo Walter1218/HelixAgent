@@ -4,6 +4,8 @@ export interface CardinalDecision {
   readonly level: CardinalLevel
   readonly reason: string
   readonly suggestion?: string
+  readonly sessionID?: string
+  readonly timestamp?: number
 }
 
 export interface ExecutionContext {
@@ -180,6 +182,8 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 export interface Interface {
   readonly evaluate: (context: ExecutionContext) => Effect.Effect<CardinalDecision | null>
   readonly getRules: () => Effect.Effect<CardinalRule[]>
+  readonly registerRules: (rules: CardinalRule[]) => Effect.Effect<void>
+  readonly clearDynamicRules: () => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Cardinal") {}
@@ -187,10 +191,34 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Ca
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
+    const dynamicRules = yield* Effect.sync(() => new Map<string, CardinalRule>())
+
     const evaluate = Effect.fn("Cardinal.evaluate")(function* (context: ExecutionContext) {
-      return evaluateCardinal(context)
+      const allRules = [...DEFAULT_RULES, ...dynamicRules.values()]
+      const decision = evaluateCardinal(context, allRules)
+      if (!decision) return null
+      return {
+        ...decision,
+        sessionID: context.taskId,
+        timestamp: Date.now(),
+      }
     })
-    return Service.of({ evaluate, getRules: () => Effect.succeed(DEFAULT_RULES) })
+
+    const getRules = Effect.fn("Cardinal.getRules")(function* () {
+      return [...DEFAULT_RULES, ...dynamicRules.values()]
+    })
+
+    const registerRules = Effect.fn("Cardinal.registerRules")(function* (rules: CardinalRule[]) {
+      for (const rule of rules) {
+        dynamicRules.set(rule.id, rule)
+      }
+    })
+
+    const clearDynamicRules = Effect.fn("Cardinal.clearDynamicRules")(function* () {
+      dynamicRules.clear()
+    })
+
+    return Service.of({ evaluate, getRules, registerRules, clearDynamicRules })
   })
 )
 

@@ -10,6 +10,8 @@ export interface SpecCheckResult {
     readonly missingRequirements: string[]
   }>
   readonly allApproved: boolean
+  readonly sessionID?: string
+  readonly timestamp?: number
 }
 
 export interface Interface {

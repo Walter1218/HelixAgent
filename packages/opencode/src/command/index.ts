@@ -9,6 +9,7 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_SPEC_GENERATE from "./template/spec-generate.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -85,6 +86,16 @@ export const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+      commands["spec"] = {
+        name: "spec",
+        description: "generate a verifiable specification document",
+        source: "command",
+        get template() {
+          return PROMPT_SPEC_GENERATE
+        },
+        subtask: true,
+        hints: hints(PROMPT_SPEC_GENERATE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

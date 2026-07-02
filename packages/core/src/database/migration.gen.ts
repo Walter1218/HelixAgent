@@ -43,5 +43,7 @@ export const migrations = (
     import("./migration/20260630_add_workflow_run"),
     import("./migration/20260630_add_team"),
     import("./migration/20260630_add_memory_fts"),
+    import("./migration/20260701_add_trace_event"),
+    import("./migration/20260701_add_spec_library"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

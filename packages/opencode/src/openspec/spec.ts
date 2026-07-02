@@ -310,8 +310,31 @@ export const layer = Layer.effect(
       }
 
       if (req.verification.type === "ast") {
-        yield* Effect.logWarning("openspec: ast verification type not yet implemented, treating as manual")
-        return req.status === "implemented"
+        const target = req.verification.target
+        const colonIndex = target.indexOf(":")
+        if (colonIndex === -1) {
+          yield* Effect.logWarning("openspec: ast verification target must be in format file:pattern", { target })
+          return false
+        }
+        const filePath = target.slice(0, colonIndex)
+        const patternStr = target.slice(colonIndex + 1)
+        const fullPath = path.resolve(projectRoot, filePath)
+
+        const content = yield* fs.readFileStringSafe(fullPath)
+        if (content === undefined) {
+          yield* Effect.logWarning("openspec: ast verification file not found", { file: fullPath })
+          return false
+        }
+
+        // Check if pattern is regex (wrapped in /.../)
+        const regexMatch = patternStr.match(/^\/(.+)\/([gimsuy]*)$/)
+        if (regexMatch) {
+          const regex = new RegExp(regexMatch[1], regexMatch[2])
+          return regex.test(content)
+        }
+
+        // Default: string contains match
+        return content.includes(patternStr)
       }
 
       return false

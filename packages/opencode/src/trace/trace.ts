@@ -94,10 +94,14 @@ export function getDuration(events: TraceEvent[]): number {
 
 import { Effect, Ref, Context, Layer } from "effect"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { Database } from "@opencode-ai/core/database/database"
+import { TraceEventTable } from "@opencode-ai/core/trace/trace.sql"
+import { eq, desc, and, gte, lte } from "drizzle-orm"
 
 export interface Interface {
   readonly emit: (event: Omit<TraceEvent, "timestamp">) => Effect.Effect<void>
   readonly getTraces: (sessionID: string) => Effect.Effect<TraceEvent[]>
+  readonly getTracesByTimeRange: (startTime: number, endTime: number) => Effect.Effect<TraceEvent[]>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Trace") {}
@@ -105,19 +109,81 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Tr
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const events = yield* Ref.make<TraceEvent[]>([])
+    const { db } = yield* Database.Service
+    const cache = yield* Ref.make<TraceEvent[]>([])
+
     const emit = Effect.fn("Trace.emit")(function* (event: Omit<TraceEvent, "timestamp">) {
-      yield* Ref.update(events, (arr) => [...arr.slice(-9999), { ...event, timestamp: Date.now() }])
+      const timestamp = Date.now()
+      const fullEvent: TraceEvent = { ...event, timestamp }
+
+      // Persist to SQLite (catch errors to avoid breaking the main flow)
+      yield* db.insert(TraceEventTable).values({
+        id: event.id,
+        session_id: (event.metadata?.sessionID as string) ?? "",
+        parent_id: event.parentId ?? null,
+        type: event.type,
+        name: event.name,
+        status: event.status,
+        duration: event.duration ?? null,
+        metadata: event.metadata ? JSON.stringify(event.metadata) : null,
+        time_created: timestamp,
+      }).pipe(Effect.catch(() => Effect.void))
+
+      // Update in-memory cache
+      yield* Ref.update(cache, (arr) => [...arr.slice(-9999), fullEvent])
     })
+
     const getTraces = Effect.fn("Trace.getTraces")(function* (sessionID: string) {
-      return (yield* Ref.get(events)).filter((e) => e.metadata?.sessionID === sessionID)
+      // Try cache first
+      const cached = (yield* Ref.get(cache)).filter((e) => e.metadata?.sessionID === sessionID)
+      if (cached.length > 0) return cached
+
+      // Fallback to SQLite
+      const rows = yield* db
+        .select()
+        .from(TraceEventTable)
+        .where(eq(TraceEventTable.session_id, sessionID))
+        .orderBy(desc(TraceEventTable.time_created))
+        .all()
+        .pipe(Effect.orDie)
+
+      return rows.map(rowToEvent)
     })
-    return Service.of({ emit, getTraces })
-  })
+
+    const getTracesByTimeRange = Effect.fn("Trace.getTracesByTimeRange")(function* (
+      startTime: number,
+      endTime: number,
+    ) {
+      const rows = yield* db
+        .select()
+        .from(TraceEventTable)
+        .where(and(gte(TraceEventTable.time_created, startTime), lte(TraceEventTable.time_created, endTime)))
+        .orderBy(desc(TraceEventTable.time_created))
+        .all()
+        .pipe(Effect.orDie)
+
+      return rows.map(rowToEvent)
+    })
+
+    return Service.of({ emit, getTraces, getTracesByTimeRange })
+  }),
 )
 
-export const defaultLayer = layer
+function rowToEvent(row: typeof TraceEventTable.$inferSelect): TraceEvent {
+  return {
+    id: row.id,
+    parentId: row.parent_id ?? undefined,
+    type: row.type as TraceEvent["type"],
+    name: row.name,
+    status: row.status as TraceEvent["status"],
+    duration: row.duration ?? undefined,
+    metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined,
+    timestamp: row.time_created,
+  }
+}
 
-export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [] })
+export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
+
+export const node = LayerNode.make({ service: Service, layer: defaultLayer, deps: [Database.node] })
 
 export * as Trace from "./trace"

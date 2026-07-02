@@ -31,6 +31,8 @@ import { TokenTracker } from "@/token/tracker"
 import { Cardinal } from "@/session/cardinal"
 import { AST } from "@/ast/ast"
 import { OpenSpecHook } from "@/openspec/hook"
+import { AlignmentGuard } from "@/observability/alignment-guard"
+import { Rollback } from "@/session/rollback"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -90,6 +92,8 @@ interface ProcessorContext extends Input {
   needsCompaction: boolean
   currentText: SessionV1.TextPart | undefined
   reasoningMap: Record<string, SessionV1.ReasoningPart>
+  consecutiveFailures: number
+  alignmentAlertCount: number
 }
 
 type StreamEvent = LLMEvent
@@ -116,6 +120,8 @@ export const layer = Layer.effect(
     const metrics = yield* Metrics.Service
     const tokenTracker = yield* TokenTracker.Service
     const cardinal = yield* Cardinal.Service
+    const alignment = yield* AlignmentGuard.Service
+    const rollback = yield* Rollback.Service
     const maybeAST = yield* Effect.serviceOption(AST.Service)
     const maybeOpenSpecHook = yield* Effect.serviceOption(OpenSpecHook.Service)
 
@@ -135,6 +141,8 @@ export const layer = Layer.effect(
         needsCompaction: false,
         currentText: undefined,
         reasoningMap: {},
+        consecutiveFailures: 0,
+        alignmentAlertCount: 0,
       }
       let aborted = false
 
@@ -381,13 +389,54 @@ export const layer = Layer.effect(
               metadata: { sessionID: ctx.sessionID, toolName: value.name, input },
             })
 
+            // AlignmentGuard: detect distraction for shell/bash tools
+            if (value.name === "shell" || value.name === "bash") {
+              const command = isRecord(input) && typeof input.command === "string" ? input.command : ""
+              if (command) {
+                const isDistraction = yield* alignment.detectDistraction(command)
+                if (isDistraction) {
+                  ctx.alignmentAlertCount++
+                  yield* Effect.logWarning("alignment: distraction detected", {
+                    "session.id": ctx.sessionID,
+                    command,
+                  })
+                }
+              }
+            }
+
+            const cardinalChangedFiles = extractChangedFilesFromToolInput(value.name ?? "unknown", input)
+            const cardinalDiff = isRecord(input) ? JSON.stringify(input, null, 2) : undefined
+
             const cardinalDecision = yield* cardinal.evaluate({
               taskId: ctx.sessionID,
               taskTitle: ctx.assistantMessage.agent,
+              diff: cardinalDiff,
+              changedFiles: cardinalChangedFiles,
+              consecutiveFailures: ctx.consecutiveFailures,
+              alignmentAlerts: ctx.alignmentAlertCount,
               tokensUsed: ctx.assistantMessage.tokens?.input ?? 0,
               totalBudget: 1_000_000,
+              estimatedFiles: cardinalChangedFiles.length || undefined,
             })
+            if (cardinalDecision) {
+              yield* trace.emit({
+                id: `cardinal-${value.id}`,
+                parentId: `session-${ctx.sessionID}`,
+                type: "decision",
+                name: `cardinal.${cardinalDecision.level}`,
+                status: cardinalDecision.level === "block" ? "failed" : "success",
+                metadata: {
+                  sessionID: ctx.sessionID,
+                  level: cardinalDecision.level,
+                  reason: cardinalDecision.reason,
+                  suggestion: cardinalDecision.suggestion,
+                },
+              })
+            }
             if (cardinalDecision?.level === "block") {
+              // Phase 7.4: Rollback on Cardinal block
+              const strategy = yield* rollback.evaluate(cardinalDecision)
+              yield* rollback.execute(strategy, ctx.sessionID)
               yield* failToolCall(value.id, new Error(`Cardinal blocked: ${cardinalDecision.reason}`))
               return
             }
@@ -400,6 +449,20 @@ export const layer = Layer.effect(
                 metadata: { decision: cardinalDecision },
                 always: ["*"],
                 ruleset: agentInfo.permission,
+              })
+            }
+            if (cardinalDecision?.level === "stop") {
+              yield* Effect.logWarning("Cardinal stop", {
+                "session.id": ctx.sessionID,
+                reason: cardinalDecision.reason,
+                suggestion: cardinalDecision.suggestion,
+              })
+            }
+            if (cardinalDecision?.level === "warn") {
+              yield* Effect.logWarning("Cardinal warn", {
+                "session.id": ctx.sessionID,
+                reason: cardinalDecision.reason,
+                suggestion: cardinalDecision.suggestion,
               })
             }
 
@@ -462,6 +525,7 @@ export const layer = Layer.effect(
                   : `${rawOutput.output}\n\n[${omitted} image${omitted === 1 ? "" : "s"} omitted: could not be resized below the image size limit.]`,
               attachments: attachments.length ? attachments : undefined,
             }
+            const toolStartTime = (toolCall?.part.state as { time?: { start?: number } })?.time?.start ?? Date.now()
             yield* completeToolCall(value.id, output)
             const changedFiles = extractChangedFilesFromToolInput(
               value.name ?? "unknown",
@@ -477,17 +541,55 @@ export const layer = Layer.effect(
                 onSome: (hook) =>
                   Effect.forEach(changedFiles, (file) =>
                     hook.checkAfterToolCall(value.name ?? "unknown", file).pipe(
-                      Effect.flatMap((result) =>
-                        result.allApproved
-                          ? Effect.void
-                          : Effect.logWarning("openspec: compliance check failed", {
-                              "session.id": ctx.sessionID,
-                              tool: value.name,
-                              file,
-                              affectedSpecs: result.affectedSpecs.map((s) => s.filePath),
-                              missing: result.results.flatMap((r) => r.missingRequirements),
-                            }),
+                      Effect.tap((result) =>
+                        trace.emit({
+                          id: `openspec-${value.id}-${file}`,
+                          parentId: `tool-${value.id}`,
+                          type: "decision",
+                          name: "openspec.check",
+                          status: result.allApproved ? "success" : "failed",
+                          metadata: {
+                            sessionID: ctx.sessionID,
+                            tool: value.name,
+                            file,
+                            allApproved: result.allApproved,
+                            affectedSpecs: result.affectedSpecs.map((s) => s.filePath),
+                            missing: result.results.flatMap((r) => r.missingRequirements),
+                          },
+                        }),
                       ),
+                      Effect.flatMap((result) => {
+                        if (result.allApproved) return Effect.void
+
+                        // Phase 2.3: Feed back to model instead of just logWarning
+                        const missing = result.results.flatMap((r) => r.missingRequirements)
+                        const feedback = [
+                          `⚠️ OpenSpec compliance check failed for ${file}:`,
+                          ...missing.map((m) => `- Missing: ${m}`),
+                          `Please fix these issues to comply with the spec.`,
+                        ].join("\n")
+
+                        return session
+                          .updatePart({
+                            id: PartID.ascending(),
+                            messageID: ctx.assistantMessage.id,
+                            sessionID: ctx.sessionID,
+                            type: "text",
+                            text: feedback,
+                            synthetic: true,
+                          })
+                          .pipe(
+                            Effect.tap(() =>
+                              Effect.logWarning("openspec: compliance feedback sent to model", {
+                                "session.id": ctx.sessionID,
+                                tool: value.name,
+                                file,
+                                missing,
+                              }),
+                            ),
+                            Effect.catch(() => Effect.void),
+                          )
+                      }),
                       Effect.catch(() => Effect.void),
                     ),
                   ).pipe(Effect.ignore),
@@ -498,6 +600,7 @@ export const layer = Layer.effect(
               type: "action",
               name: `tool.${value.name ?? "unknown"}`,
               status: "success",
+              duration: Date.now() - toolStartTime,
               metadata: { sessionID: ctx.sessionID },
             })
             yield* metrics.recordToolCall({
@@ -508,16 +611,21 @@ export const layer = Layer.effect(
               tool_call_id: value.id,
               tool_call_status: "success",
             })
+            ctx.consecutiveFailures = 0
             return
           }
 
           case "tool-error": {
+            ctx.consecutiveFailures++
+            const errorToolCall = yield* readToolCall(value.id)
+            const errorStartTime = (errorToolCall?.part.state as { time?: { start?: number } })?.time?.start ?? Date.now()
             yield* failToolCall(value.id, value.error ?? new Error(value.message))
             yield* trace.emit({
               id: `tool-${value.id}`,
               type: "action",
               name: `tool.${value.name ?? "unknown"}`,
               status: "failed",
+              duration: Date.now() - errorStartTime,
               metadata: { sessionID: ctx.sessionID, error: value.error ?? value.message },
             })
             yield* metrics.recordToolCall({
@@ -841,6 +949,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Database.defaultLayer),
     Layer.provide(EventV2Bridge.defaultLayer),
     Layer.provide(AST.defaultLayer),
+    Layer.provide(AlignmentGuard.defaultLayer),
+    Layer.provide(Rollback.defaultLayer),
     Layer.provide(OpenSpecHook.defaultLayer),
   ),
 )
@@ -865,6 +975,8 @@ export const node = LayerNode.make({
     Metrics.node,
     TokenTracker.node,
     Cardinal.node,
+    AlignmentGuard.node,
+    Rollback.node,
     AST.node,
   ],
 })

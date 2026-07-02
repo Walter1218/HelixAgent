@@ -190,7 +190,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               targetFps: 60,
               gatherStats: false,
               exitOnCtrlC: false,
-              useKittyKeyboard: {},
+              useKittyKeyboard: { events: process.platform === "win32" },
               autoFocus: false,
               openConsoleOnError: false,
               useMouse: !Flag.OPENCODE_DISABLE_MOUSE && input.config.mouse,
@@ -222,10 +222,19 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       )
       yield* Effect.addFinalizer(() => Effect.sync(TuiAudio.dispose))
       const shutdown = yield* Deferred.make<unknown>()
-      const onSighup = () => destroyRenderer(renderer)
+      const onExitSignal = () => destroyRenderer(renderer)
       yield* Effect.acquireRelease(
-        Effect.sync(() => process.on("SIGHUP", onSighup)),
-        () => Effect.sync(() => process.off("SIGHUP", onSighup)),
+        Effect.sync(() => {
+          process.on("SIGHUP", onExitSignal)
+          process.on("SIGINT", onExitSignal)
+          process.on("SIGTERM", onExitSignal)
+        }),
+        () =>
+          Effect.sync(() => {
+            process.off("SIGHUP", onExitSignal)
+            process.off("SIGINT", onExitSignal)
+            process.off("SIGTERM", onExitSignal)
+          }),
       )
       renderer.once("destroy", () => Deferred.doneUnsafe(shutdown, Effect.void))
       const pluginRuntime = createPluginRuntime()
@@ -341,6 +350,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             </ExitProvider>
           )
         }, renderer)
+        renderer.start()
       })
       yield* Deferred.await(shutdown)
       return { epilogue: exit.epilogue, reason: exit.reason }
