@@ -1933,8 +1933,8 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(SessionSummary.defaultLayer),
     Layer.provide(Image.defaultLayer),
     Layer.provide(Trace.defaultLayer),
-    Layer.provide(History.defaultLayer),
   ).pipe(
+    Layer.provide(History.defaultLayer),
     Layer.provide(AlignmentGuard.defaultLayer),
     Layer.provide(Goal.defaultLayer),
     Layer.provide(ModeRegistry.defaultLayer),
