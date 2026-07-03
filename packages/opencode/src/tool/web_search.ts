@@ -44,7 +44,7 @@ export const Parameters = Schema.Struct({
 type WebSearchProvider = "mimo" | "exa" | "parallel" | undefined
 
 const mimoDefaults = {
-  baseUrl: "https://api.xiaomimimo.com/v1",
+  baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
   model: "mimo-v2.5-pro",
 }
 
