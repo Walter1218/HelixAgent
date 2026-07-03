@@ -700,6 +700,204 @@ async function persistToAgentsMd(insight: RuleInsight): Promise<void> {
 - [ ] 数据收集不影响主流程性能（< 10ms）
 - [ ] 数据格式符合设计规范
 
+#### 5.1.1 数据库 Schema 详细设计
+
+**task_execution 表**：
+
+```sql
+CREATE TABLE task_execution (
+  id TEXT PRIMARY KEY,                    -- nanoid
+  session_id TEXT NOT NULL,               -- 关联 session
+  agent TEXT NOT NULL DEFAULT 'build',    -- agent 类型: ask/build/plan/compose/max/loop
+  model TEXT NOT NULL DEFAULT '',         -- provider/model 格式
+  goal TEXT NOT NULL DEFAULT '',          -- session goal 条件
+  outcome TEXT NOT NULL DEFAULT 'unknown',-- success/failure/partial/interrupted
+  duration_ms INTEGER DEFAULT 0,          -- 任务总耗时
+  tokens_input INTEGER DEFAULT 0,         -- 输入 token 数
+  tokens_output INTEGER DEFAULT 0,        -- 输出 token 数
+  tokens_reasoning INTEGER DEFAULT 0,     -- 推理 token 数
+  tools_used TEXT DEFAULT '[]',           -- JSON: ["read", "edit", "bash", ...]
+  tool_call_count INTEGER DEFAULT 0,      -- 工具调用总次数
+  harness_summary TEXT DEFAULT '{}',      -- JSON: {cardinal: {triggered: 3, blocked: 1}, ...}
+  error_message TEXT,                     -- 失败时的错误信息
+  error_type TEXT,                        -- error 类型: timeout/auth/tool_error/...
+  created_at INTEGER NOT NULL,            -- unix timestamp
+  metadata TEXT DEFAULT '{}'              -- JSON: 扩展字段
+);
+
+CREATE INDEX idx_task_session ON task_execution(session_id);
+CREATE INDEX idx_task_agent ON task_execution(agent);
+CREATE INDEX idx_task_outcome ON task_execution(outcome);
+CREATE INDEX idx_task_created ON task_execution(created_at);
+```
+
+**harness_event 表**：
+
+```sql
+CREATE TABLE harness_event (
+  id TEXT PRIMARY KEY,                    -- nanoid
+  task_id TEXT NOT NULL,                  -- 关联 task_execution.id
+  session_id TEXT NOT NULL,               -- 冗余，便于查询
+  harness_type TEXT NOT NULL,             -- cardinal/alignment/openspec/judge/goal_judge
+  event_type TEXT NOT NULL,               -- trigger/evaluate/decide/preflight
+  input_summary TEXT,                     -- 输入摘要（非完整输入，避免膨胀）
+  output_summary TEXT,                    -- 输出摘要
+  decision TEXT,                          -- approve/reject/warn/skip
+  reason TEXT,                            -- 决策原因
+  duration_ms INTEGER DEFAULT 0,          -- 执行耗时
+  confidence REAL,                        -- 置信度（0-1）
+  timestamp INTEGER NOT NULL,             -- unix timestamp
+  metadata TEXT DEFAULT '{}'              -- JSON: 扩展字段
+);
+
+CREATE INDEX idx_harness_task ON harness_event(task_id);
+CREATE INDEX idx_harness_session ON harness_event(session_id);
+CREATE INDEX idx_harness_type ON harness_event(harness_type);
+CREATE INDEX idx_harness_timestamp ON harness_event(timestamp);
+```
+
+#### 5.1.2 收集器实现设计
+
+**文件**: `src/reflection/collector.ts`
+
+```typescript
+// 模块形状：遵循 AGENTS.md 的 self-reexport 模式
+
+export interface TaskExecutionRecord {
+  id: string
+  sessionID: string
+  agent: string
+  model: string
+  goal: string
+  outcome: "success" | "failure" | "partial" | "interrupted"
+  durationMs: number
+  tokensInput: number
+  tokensOutput: number
+  tokensReasoning: number
+  toolsUsed: string[]
+  toolCallCount: number
+  harnessSummary: Record<string, { triggered: number; blocked: number }>
+  errorMessage?: string
+  errorType?: string
+  createdAt: number
+  metadata?: Record<string, unknown>
+}
+
+export interface HarnessEventRecord {
+  id: string
+  taskID: string
+  sessionID: string
+  harnessType: "cardinal" | "alignment" | "openspec" | "judge" | "goal_judge"
+  eventType: "trigger" | "evaluate" | "decide" | "preflight"
+  inputSummary?: string
+  outputSummary?: string
+  decision?: "approve" | "reject" | "warn" | "skip"
+  reason?: string
+  durationMs: number
+  confidence?: number
+  timestamp: number
+  metadata?: Record<string, unknown>
+}
+
+export interface Interface {
+  readonly startTask: (input: { sessionID: string; agent: string; model: string; goal: string }) => Effect.Effect<string>
+  readonly endTask: (taskID: string, outcome: TaskExecutionRecord["outcome"], error?: Error) => Effect.Effect<void>
+  readonly recordToolCall: (taskID: string, tool: string, durationMs: number) => Effect.Effect<void>
+  readonly recordHarnessEvent: (event: Omit<HarnessEventRecord, "id" | "timestamp">) => Effect.Effect<void>
+  readonly getTaskStats: (sessionID: string) => Effect.Effect<TaskStats>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/ReflectionCollector") {}
+
+// 关键设计决策：
+// 1. 所有写入操作使用 Effect.ignore 包裹，不阻塞主流程
+// 2. 使用批量写入（每 10 条或 5 秒 flush 一次）减少 IO
+// 3. toolsUsed 使用 Set 去重后转 Array
+// 4. harnessSummary 在 endTask 时从 harness_event 表聚合生成
+
+export * as ReflectionCollector from "./collector"
+```
+
+#### 5.1.3 收集点详细设计
+
+**processor.ts 收集点**：
+
+```
+位置 1: 任务开始 (line ~130)
+  触发: session 开始执行
+  收集: sessionID, agent, model, goal
+  调用: collector.startTask()
+  注意: goal 从 Goal.Service.get(sessionID) 获取
+
+位置 2: Harness 触发 (line ~412, ~547)
+  触发: Cardinal.evaluate / OpenSpecHook.check 执行时
+  收集: harnessType, eventType, decision, reason, duration
+  调用: collector.recordHarnessEvent()
+  注意: 使用 Effect.tap 在现有 harness 调用链中插入收集
+
+位置 3: 工具调用 (line ~600)
+  触发: 工具执行完成
+  收集: toolName, durationMs
+  调用: collector.recordToolCall()
+  注意: 使用 Effect.tap，不改变工具执行逻辑
+
+位置 4: 任务结束 (line ~640)
+  触发: 任务完成/失败/中断
+  收集: outcome, error
+  调用: collector.endTask()
+  注意: 使用 Effect.ensuring 确保无论成功失败都记录
+```
+
+**prompt.ts 收集点**：
+
+```
+位置 1: runLoop 开始 (line ~1137)
+  触发: 新一轮对话开始
+  收集: sessionID, agent, model
+  调用: collector.startTask()
+  注意: agent 从 lastUser.agent 获取，model 从 provider 获取
+
+位置 2: GoalJudge preflight (line ~1681)
+  触发: GoalJudge 执行 preflight
+  收集: decision, reason, confidence
+  调用: collector.recordHarnessEvent({ harnessType: "goal_judge", eventType: "preflight" })
+
+位置 3: runLoop 结束 (line ~1755)
+  触发: 对话轮次结束
+  收集: outcome
+  调用: collector.endTask()
+  注意: outcome 根据是否有 error 判断
+```
+
+#### 5.1.4 与现有系统的集成
+
+| 现有服务 | 集成方式 | 改动量 |
+|----------|----------|--------|
+| **Trace.Service** | 在 emit 时同时写入 harness_event | 小（Effect.tap） |
+| **Goal.Service** | 在 get 时获取 goal 用于 task_execution | 无（只读） |
+| **TokenTracker** | 在 endTask 时获取 token 统计 | 小（yield service） |
+| **SessionStatus** | 在 endTask 时获取 session 状态 | 小（yield service） |
+
+#### 5.1.5 性能保障
+
+| 措施 | 说明 |
+|------|------|
+| **Effect.ignore** | 所有收集操作不阻塞主流程，失败静默 |
+| **批量写入** | 攒够 10 条或 5 秒后批量 INSERT |
+| **异步聚合** | harnessSummary 在 endTask 时异步聚合 |
+| **索引优化** | session_id + timestamp 复合索引 |
+| **数据裁剪** | 只存摘要不存完整输入输出 |
+
+#### 5.1.6 实现顺序
+
+```
+Day 1: 创建 migration + schema 定义
+Day 2: 实现 collector.ts 核心逻辑
+Day 3: 在 processor.ts 添加收集点
+Day 4: 在 prompt.ts 添加收集点
+Day 5: 集成测试 + 性能验证
+```
+
 ### 5.2 Phase 2: 反思引擎核心（2 周）
 
 **目标**：实现反思分析能力
