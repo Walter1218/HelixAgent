@@ -55,7 +55,13 @@ export const layer = Layer.effect(
       `).pipe(Effect.orDie)
     })
 
-    const search = Effect.fn("History.search")(function* (input) {
+    const search = Effect.fn("History.search")(function* (input: {
+      query: string
+      kind?: HistoryKind | HistoryKind[]
+      time_after?: number
+      time_before?: number
+      limit?: number
+    }) {
       const limit = input.limit ?? 10
       const conditions: string[] = []
 
@@ -77,6 +83,14 @@ export const layer = Layer.effect(
 
       const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "1=1"
 
+      // Clean FTS5 special characters and wrap in quotes for phrase search
+      // unicode61 tokenizer treats .,;,:/ etc as separators, remove them to avoid syntax errors
+      const cleanedQuery = input.query
+        .replace(/["'*:^()[\]{}<>]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+      const escapedQuery = cleanedQuery ? `"${cleanedQuery.replace(/"/g, '""')}"` : ""
+
       const rows = yield* db
         .all<{
           message_id: string
@@ -97,13 +111,24 @@ export const layer = Layer.effect(
             time_created
           FROM history_fts
           WHERE ${sql.raw(whereClause)}
-            AND history_fts MATCH ${input.query}
+            AND history_fts MATCH ${escapedQuery}
           ORDER BY rank
           LIMIT ${limit}
         `)
-        .pipe(Effect.orDie)
+        .pipe(
+          Effect.catch(() =>
+            Effect.gen(function* () {
+              // Log concise warning with query snippet for debugging
+              const querySnippet = input.query.length > 100
+                ? input.query.substring(0, 100) + "..."
+                : input.query
+              yield* Effect.logWarning(`History search failed, skipping (query: "${querySnippet}")`)
+              return [] as SearchHit[]
+            })
+          )
+        )
 
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         message_id: row.message_id,
         session_id: row.session_id,
         part_id: row.part_id,
@@ -114,7 +139,7 @@ export const layer = Layer.effect(
         score: 0,
         time_created: row.time_created,
       }))
-    })
+    }, Effect.scoped)
 
     return Service.of({ ingest, search })
   }),

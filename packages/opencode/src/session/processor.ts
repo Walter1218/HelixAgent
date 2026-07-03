@@ -439,7 +439,10 @@ export const layer = Layer.effect(
               // Phase 7.4: Rollback on Cardinal block
               const strategy = yield* rollback.evaluate(cardinalDecision)
               yield* rollback.execute(strategy, ctx.sessionID)
-              yield* failToolCall(value.id, new Error(`Cardinal blocked: ${cardinalDecision.reason}`))
+              const message = cardinalDecision.suggestion
+                ? `Cardinal blocked: ${cardinalDecision.reason} — ${cardinalDecision.suggestion}`
+                : `Cardinal blocked: ${cardinalDecision.reason}`
+              yield* failToolCall(value.id, new Error(message))
               return
             }
             if (cardinalDecision?.level === "pause") {

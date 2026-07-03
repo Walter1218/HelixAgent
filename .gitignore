@@ -32,3 +32,16 @@ UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
+
+# Sensitive data - never commit
+*.db
+*.db-shm
+*.db-wal
+auth.json
+.env.*
+.opencode/auth.json
+.opencode/skills/*/memory/
+memory/
+trace/
+*.log
+packages/storybook/debug-storybook.log

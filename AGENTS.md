@@ -236,3 +236,24 @@ See `specs/prompt-context-assembly.md` for the full specification and checklist.
 - Keep delivery vocabulary explicit. Prompts steer by default and promote at the next safe provider-turn boundary while the current drain requires continuation. An explicit `queue` input remains pending until the Session would otherwise become idle; promote one queued input at that boundary, then reevaluate continuation before promoting another. Promoting any new user input resets the selected agent's provider-turn allowance; a batch of steers resets it once.
 - Keep EventV2 replay owner claims separate from clustered Session execution ownership.
 - Keep the System Context algebra, registry, and built-ins in `src/system-context`; keep Context Source producers with their observed domains, and keep Session History selection plus Context Epoch persistence Session-owned.
+
+## Security Guidelines
+
+### Sensitive Data Handling
+
+- Never commit API keys, tokens, passwords, or secrets to the repository
+- Use environment variables or `.env.local` for sensitive configuration
+- The following files are gitignored and should never be committed:
+  - `*.db`, `*.db-shm`, `*.db-wal` - Database files
+  - `auth.json` - Authentication credentials
+  - `.env.*` - Environment files
+  - `logs/` and `*.log` - Log files
+  - `memory/` and `trace/` - User data directories
+- Cardinal security checks will block operations containing exposed secrets
+- When testing with API keys, use placeholder values or environment variables
+
+### Error Handling
+
+- FTS5 full-text search queries must be sanitized to avoid syntax errors
+- Cardinal security blocks should display clear, actionable error messages
+- Permission denied errors should not expose internal ruleset details
