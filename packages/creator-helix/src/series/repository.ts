@@ -24,7 +24,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode-ai
 // ─── Row Mapping ───
 
 const fromRow = (row: typeof SeriesTable.$inferSelect): Series => {
-  const parsed = JSON.parse(String(row.data))
+  const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data
   return {
     id: row.id,
     title: row.title,

@@ -146,7 +146,7 @@ Seedance 2.0 是字节跳动豆包团队推出的多模态 AI 视频生成模型
 Base URL: https://ark.cn-beijing.volces.com/api/v3
 端点: /contents/generations/tasks
       /contents/generations/tasks/{task_id}
-API Key: REDACTED_SEEDANCE_API_KEY
+API Key: <your-ark-api-key>
 ```
 
 **注意：** 火山方舟的 API 参数与 seedance2api.app 文档略有不同：

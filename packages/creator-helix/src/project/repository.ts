@@ -22,7 +22,7 @@ interface ProjectRowData {
 }
 
 const fromRow = (row: typeof KnowledgeProjectTable.$inferSelect): Project => {
-  const parsed = JSON.parse(String(row.data))
+  const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data
   const decoded = Schema.decodeUnknownOption(ProjectSchema)({
     ...parsed,
     id: row.id,
