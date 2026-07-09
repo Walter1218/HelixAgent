@@ -98,7 +98,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   }
   if (isOpenaiOauth) options.instructions = system.join("\n")
 
-  const messages =
+  const rawMessages =
     isOpenaiOauth || input.isWorkflow
       ? input.messages
       : [
@@ -110,6 +110,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
           ),
           ...input.messages,
         ]
+
+  // Pre-filter unsupported image/file parts before passing to AI SDK.
+  // This prevents "No endpoints found that support image input" errors
+  // when using models that don't support vision (e.g. mimo-v2.5-pro).
+  const messages = ProviderTransform.unsupportedParts(rawMessages, input.model)
 
   const params = yield* input.plugin.trigger(
     "chat.params",

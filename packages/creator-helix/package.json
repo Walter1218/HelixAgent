@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@opencode-ai/creator-helix",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent": "./src/agent/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./state-machine": "./src/state-machine/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "test": "bun test --timeout 30000 --only-failures",
+    "dev:server": "bun run src/server/start.ts",
+    "server": "bun run src/server/start.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/core": "workspace:*",
+    "@opencode-ai/llm": "workspace:*",
+    "@opencode-ai/schema": "workspace:*",
+    "@volcengine/tos-sdk": "2.9.1",
+    "canvas": "3.2.3",
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:",
+    "hono": "catalog:",
+    "jsdom": "^29.1.1",
+    "puppeteer-core": "25.3.0",
+    "sharp": "0.35.3",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/three": "^0.185.0",
+    "@typescript/native-preview": "catalog:"
+  }
+}

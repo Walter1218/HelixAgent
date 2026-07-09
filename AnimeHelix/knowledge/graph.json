@@ -1,0 +1,166 @@
+{
+  "version": "1.0",
+  "description": "AnimeHelix 资产知识图谱",
+  "nodes": {
+    "characters": {
+      "char_001": {
+        "name": "主角A",
+        "type": "character",
+        "description": "年轻男性，短发，蓝色服装",
+        "images": ["characters/char_001_front.png", "characters/char_001_side.png"],
+        "tags": ["male", "young", "blue"],
+        "style": "anime",
+        "emotions": ["happy", "sad", "angry", "neutral"],
+        "poses": ["standing", "walking", "running", "sitting"]
+      },
+      "char_002": {
+        "name": "主角B",
+        "type": "character",
+        "description": "年轻女性，长发，红色服装",
+        "images": ["characters/char_002_front.png", "characters/char_002_side.png"],
+        "tags": ["female", "young", "red"],
+        "style": "anime",
+        "emotions": ["happy", "sad", "surprised", "neutral"],
+        "poses": ["standing", "walking", "dancing", "sitting"]
+      }
+    },
+    "props": {
+      "prop_001": {
+        "name": "产品盒子",
+        "type": "prop",
+        "description": "红色金属质感的产品包装盒",
+        "images": ["props/product_box_red.png"],
+        "tags": ["product", "box", "red", "metallic"],
+        "material": "metallic",
+        "color": "red",
+        "usage": ["ecommerce", "product_showcase"]
+      },
+      "prop_002": {
+        "name": "科幻飞船",
+        "type": "prop",
+        "description": "未来感的太空飞船",
+        "images": ["props/spaceship_blue.png"],
+        "tags": ["spaceship", "futuristic", "blue"],
+        "material": "metallic",
+        "color": "blue",
+        "usage": ["scifi", "space_scene"]
+      }
+    },
+    "scenes": {
+      "scene_001": {
+        "name": "室内房间",
+        "type": "scene",
+        "description": "现代风格的室内房间",
+        "images": ["scenes/room_modern.png"],
+        "tags": ["indoor", "room", "modern"],
+        "lighting": "warm",
+        "time": "day",
+        "usage": ["drama", "dialogue"]
+      },
+      "scene_002": {
+        "name": "未来城市",
+        "type": "scene",
+        "description": "赛博朋克风格的未来城市",
+        "images": ["scenes/city_cyberpunk.png"],
+        "tags": ["outdoor", "city", "futuristic", "cyberpunk"],
+        "lighting": "neon",
+        "time": "night",
+        "usage": ["scifi", "action"]
+      },
+      "scene_003": {
+        "name": "摄影棚",
+        "type": "scene",
+        "description": "专业产品摄影棚",
+        "images": ["scenes/studio_photo.png"],
+        "tags": ["studio", "product", "professional"],
+        "lighting": "studio",
+        "time": "any",
+        "usage": ["ecommerce", "product_showcase"]
+      }
+    },
+    "styles": {
+      "style_001": {
+        "name": "电影级",
+        "type": "style",
+        "description": "电影级画质，专业色彩分级",
+        "prompt_keywords": ["cinematic", "film look", "color grading", "8K"],
+        "usage": ["drama", "ecommerce"]
+      },
+      "style_002": {
+        "name": "赛博朋克",
+        "type": "style",
+        "description": "霓虹灯光，未来科技感",
+        "prompt_keywords": ["cyberpunk", "neon lights", "futuristic", "holographic"],
+        "usage": ["scifi", "action"]
+      },
+      "style_003": {
+        "name": "动漫风格",
+        "type": "style",
+        "description": "日式动漫风格",
+        "prompt_keywords": ["anime style", "2D", "cel shading", "vibrant colors"],
+        "usage": ["drama", "comedy"]
+      }
+    }
+  },
+  "relations": [
+    {
+      "source": "char_001",
+      "target": "scene_001",
+      "relation": "appears_in",
+      "description": "主角A出现在室内房间场景"
+    },
+    {
+      "source": "char_001",
+      "target": "char_002",
+      "relation": "interacts_with",
+      "description": "主角A与主角B有对话交互"
+    },
+    {
+      "source": "prop_001",
+      "target": "scene_003",
+      "relation": "placed_in",
+      "description": "产品盒子放置在摄影棚中"
+    },
+    {
+      "source": "prop_002",
+      "target": "scene_002",
+      "relation": "flies_in",
+      "description": "科幻飞船在未来城市中飞行"
+    },
+    {
+      "source": "style_001",
+      "target": "scene_001",
+      "relation": "applied_to",
+      "description": "电影级风格应用于室内场景"
+    },
+    {
+      "source": "style_002",
+      "target": "scene_002",
+      "relation": "applied_to",
+      "description": "赛博朋克风格应用于未来城市"
+    }
+  ],
+  "templates": {
+    "ecommerce_product": {
+      "name": "电商产品展示",
+      "description": "标准电商产品视频模板",
+      "required_assets": ["prop_001", "scene_003", "style_001"],
+      "prompt_template": "专业产品摄影，{prop.name}在{scene.name}中展示，{style.keywords}，8K画质",
+      "blender_template": "templates/project_template.py"
+    },
+    "drama_dialogue": {
+      "name": "剧情对话场景",
+      "description": "双人对话场景模板",
+      "required_assets": ["char_001", "char_002", "scene_001", "style_001"],
+      "prompt_template": "电影级画质，{char1.name}和{char2.name}在{scene.name}中对话，{style.keywords}",
+      "blender_template": "templates/drama_template.py"
+    },
+    "scifi_action": {
+      "name": "科幻动作场景",
+      "description": "未来科技动作场景模板",
+      "required_assets": ["prop_002", "scene_002", "style_002"],
+      "prompt_template": "赛博朋克风格，{prop.name}在{scene.name}中飞行，{style.keywords}，特效华丽",
+      "blender_template": "templates/scifi_template.py"
+    }
+  }
+}

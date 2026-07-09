@@ -39,9 +39,69 @@ tsconfig.tsbuildinfo
 *.db-wal
 auth.json
 .env.*
+.env.local
 .opencode/auth.json
 .opencode/skills/*/memory/
 memory/
 trace/
 *.log
 packages/storybook/debug-storybook.log
+
+# Media files - too large for git
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+*.flv
+*.wmv
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.tiff
+*.ico
+*.svg
+
+# Generated frames/output
+**/output/
+**/frames/
+**/frame-*.png
+**/frame-*.svg
+screenshot-*.png
+
+# Output directories
+output/
+*/output/
+**/output/
+
+# Sensitive config with API keys
+AnimeHelix/config/
+screenshot-*.png
+
+# Large binaries
+*.dmg
+*.exe
+*.msi
+*.pkg
+*.deb
+*.rpm
+*.app
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# .opencode runtime data (keep skills/commands but ignore generated content)
+.opencode/DISTILL_REPORT.md
+.opencode/DREAM_CONSOLIDATION*.md
+.opencode/command/
+.opencode/skills/*/memory/
+.opencode/skills/*/distill/
