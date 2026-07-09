@@ -39,7 +39,7 @@ async function main() {
   // ── Step 3: Test LLM can generate JSON ──
   console.log("\n[3] Test LLM JSON generation (MiMo)")
   try {
-    const apiKey = "REDACTED_MIMO_API_KEY"
+    const apiKey = process.env.MIMO_API_KEY ?? ""
     const baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
     const provider = createOpenAICompatible({ name: "mimo", apiKey, baseURL })
     const model = provider("mimo-v2.5-pro")

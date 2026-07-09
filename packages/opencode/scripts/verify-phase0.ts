@@ -178,7 +178,7 @@ async function main() {
   // ── Phase 1: req-agent LLM 调用 ──
   console.log("\n[1] req-agent LLM 调用")
   try {
-    const apiKey = "REDACTED_MIMO_API_KEY"
+    const apiKey = process.env.MIMO_API_KEY ?? ""
     const baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
     const provider = createOpenAICompatible({ name: "mimo", apiKey, baseURL })
     const model = provider("mimo-v2.5-pro")

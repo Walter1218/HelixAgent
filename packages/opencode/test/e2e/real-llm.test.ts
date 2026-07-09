@@ -24,7 +24,7 @@ async function callLLM(prompt: string): Promise<string> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer REDACTED_MIMO_API_KEY",
+      "Authorization": `Bearer ${process.env.MIMO_API_KEY ?? ""}`,
     },
     body: JSON.stringify({
       model: "mimo-v2.5-pro",

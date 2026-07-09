@@ -5,7 +5,7 @@ import { runReqAgent } from "@/spec-generation/req-agent"
 import { runMergeAgent } from "@/spec-generation/merge-agent"
 import { runReviewAgent } from "@/spec-generation/review-agent"
 
-const apiKey = "REDACTED_MIMO_API_KEY"
+const apiKey = process.env.MIMO_API_KEY ?? ""
 const baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
 
 const provider = createOpenAICompatible({ name: "mimo", apiKey, baseURL })

@@ -83,9 +83,9 @@ rm -f /Users/onetwo/Documents/trae_projects/anime-creator/test-*.js
 Some tests require API keys:
 
 ```bash
-export MIMO_API_KEY="REDACTED_MIMO_API_KEY"
+export MIMO_API_KEY="<your-mimo-api-key>"
 export MIMO_API_BASE="https://token-plan-cn.xiaomimimo.com/v1"
-export SEEDANCE_API_KEY="REDACTED_SEEDANCE_API_KEY"
+export SEEDANCE_API_KEY="<your-seedance-api-key>"
 export SEEDANCE_API_BASE="https://ark.cn-beijing.volces.com/api/v3"
 ```
 

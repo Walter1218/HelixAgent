@@ -22,7 +22,7 @@ import { runReviewAgent } from "../src/spec-generation/review-agent"
 import fs from "fs"
 import path from "path"
 
-const apiKey = "REDACTED_MIMO_API_KEY"
+const apiKey = process.env.MIMO_API_KEY ?? ""
 const baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
 const provider = createOpenAICompatible({ name: "mimo", apiKey, baseURL })
 const model = provider("mimo-v2.5-pro")

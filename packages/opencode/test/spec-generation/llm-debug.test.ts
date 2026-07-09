@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 import { generateText } from "ai"
 
-const apiKey = "REDACTED_MIMO_API_KEY"
+const apiKey = process.env.MIMO_API_KEY ?? ""
 const baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
 
 const provider = createOpenAICompatible({ name: "mimo", apiKey, baseURL })
